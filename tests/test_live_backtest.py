@@ -64,5 +64,32 @@ class LiveRulesTests(unittest.TestCase):
         self.assertGreater(t["pnl"], 0)
 
 
+
+class BreakevenStopTests(unittest.TestCase):
+    def tearDown(self):
+        dt.S["BE_R"] = None
+
+    # Long from 100, stop 99 (1R = $1). 9:35 rises to 101.2 (+1.2R), 9:40 falls back to 98.
+    BARS = [(100, 100.1, 99.9, 100), (100, 101.2, 100, 101.1), (101.1, 101.1, 98, 98.2)]
+
+    def test_without_breakeven_the_original_stop_hits(self):
+        dt.S["BE_R"] = None
+        hm, px, why = dt.exit_from(day_bars(self.BARS), 0, "long", 99.0, None, 100.0)
+        self.assertEqual((hm, why), ("09:40", "stop"))
+        self.assertAlmostEqual(px, 99.0 * (1 - dt.S["SLIPPAGE_PCT"] / 100))
+
+    def test_breakeven_stop_exits_at_the_entry(self):
+        dt.S["BE_R"] = 1.0
+        hm, px, why = dt.exit_from(day_bars(self.BARS), 0, "long", 99.0, None, 100.0)
+        self.assertEqual((hm, why), ("09:40", "stop"))
+        self.assertAlmostEqual(px, 100.0 * (1 - dt.S["SLIPPAGE_PCT"] / 100))
+
+    def test_breakeven_not_reached_keeps_the_original_stop(self):
+        dt.S["BE_R"] = 1.0
+        bars = [(100, 100.1, 99.9, 100), (100, 100.8, 100, 100.7), (100.7, 100.7, 98, 98.2)]
+        hm, px, why = dt.exit_from(day_bars(bars), 0, "long", 99.0, None, 100.0)
+        self.assertAlmostEqual(px, 99.0 * (1 - dt.S["SLIPPAGE_PCT"] / 100))
+
+
 if __name__ == "__main__":
     unittest.main()

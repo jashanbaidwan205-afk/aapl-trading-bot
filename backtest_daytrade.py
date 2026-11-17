@@ -73,6 +73,7 @@ S = {
     "SIP_STOP_ATR": 0.10,
     "VWAP_STOP_ATR": 0.02,
     "TARGET_R": 2.0,
+    "BE_R": None,          # move the stop to the entry price once a trade is this many R in profit (None = never)
 }
 
 STRATEGIES = {
@@ -82,6 +83,24 @@ STRATEGIES = {
     "sip_old": ("Day trader bot, first rules (top-ranked orders hold room)", 20),
     "sip_live": ("Day trader bot, new rules (first breakout gets the room)", 20),
     "sip_live_slip10": ("Day trader bot, new rules, double slippage (0.10%)", 20),
+    # Ways to raise the day trader's returns, each changing one thing from the live rules
+    "sip_live_risk1": ("Day trader, 1% risk per trade", 20),
+    "sip_live_pos20": ("Day trader, 1% risk and up to 20% per stock", 20),
+    "sip_live_top10": ("Day trader, only the top 10 stocks in play", 20),
+    "sip_live_rvol2": ("Day trader, opening volume at least 2x normal", 20),
+    "sip_live_be1r": ("Day trader, stop moved to breakeven at +1R", 20),
+    "sip_live_slip03": ("Day trader, cheaper fills (0.03% slippage)", 20),
+}
+# Changes from the live rules for each day trader version (all use the live 50% limit, 3:30 entry cut-off, 3:55 close)
+LIVE_TWEAKS = {
+    "sip_live": {},
+    "sip_live_slip10": {"SLIPPAGE_PCT": 0.10},
+    "sip_live_risk1": {"RISK_PCT": 1.0},
+    "sip_live_pos20": {"RISK_PCT": 1.0, "MAX_POS_PCT": 20.0},
+    "sip_live_top10": {"TOP": 10},
+    "sip_live_rvol2": {"MIN_RVOL": 2.0},
+    "sip_live_be1r": {"BE_R": 1.0},
+    "sip_live_slip03": {"SLIPPAGE_PCT": 0.03},
 }
 LIVE_ENTRY_UNTIL = "15:00"   # sip_bot.py: SIP_ENTRY_UNTIL
 LIVE_FLATTEN_AT = "15:55"    # sip_bot.py: SIP_FLATTEN_AT
@@ -183,6 +202,10 @@ def exit_from(b, k, side, stop, target, entry_px):
     slip = S["SLIPPAGE_PCT"] / 100
     long = side == "long"
     out = (lambda px: px * (1 - slip)) if long else (lambda px: px * (1 + slip))
+    be = None
+    if S.get("BE_R"):
+        r = abs(entry_px - stop)
+        be = entry_px + S["BE_R"] * r if long else entry_px - S["BE_R"] * r
     for i in range(k, len(b)):
         path = bar_path(b.open[i], b.high[i], b.low[i], b.close[i])
         if i == k:
@@ -210,6 +233,8 @@ def exit_from(b, k, side, stop, target, entry_px):
             if hits:
                 _, px, why = min(hits)
                 return b.hm[i], out(px), why
+            if be is not None and lo <= be <= hi:
+                stop, be = entry_px, None          # from here on the stop sits at the entry price
             prev = p
     return b.hm[-1], out(b.close[-1]), "close"
 
@@ -263,6 +288,7 @@ def build_candidates(days, bars_by, daily, symbols):
                     "level": float(b.high[0] if up else b.low[0]), "dist": S["SIP_STOP_ATR"] * float(a)})
             t = sip_trade(b, a)
             if t:
+                t["rvol"] = float(rv)
                 cands["sip"].setdefault(d, []).append((b.hm[t["k"]], rank, s, t))
             t = vwap_trade(b, a)
             if t:
@@ -469,7 +495,12 @@ def summarize(name, trades, eq_rows, months, withdrawn, withdraw_pct, max_trades
                      f"stop {S['SIP_STOP_ATR']:g}x ATR, closed at {LIVE_FLATTEN_AT}"),
         "gap": f"gaps of {S['MIN_GAP_PCT']:g}%+ with {S['MIN_RVOL_GAP']:g}x opening volume, top {S['TOP_GAP']}, "
                f"break of first 5-min candle before 10:30, target {S['TARGET_R']:g}R",
-    }[name] + (f"; risk {S['RISK_PCT']:g}% per trade, max {S['MAX_POS_PCT']:g}% per position, "
+    }.get(name) or (f"the new live bot rules with one change ({STRATEGIES[name][0].split(', ', 1)[-1]}): top "
+                    f"{LIVE_TWEAKS[name].get('TOP', S['TOP_SIP'])} by opening relative volume of at least "
+                    f"{LIVE_TWEAKS[name].get('MIN_RVOL', S['MIN_RVOL_SIP']):g}x, first breakout gets the room, "
+                    f"entries until 15:30, stop {S['SIP_STOP_ATR']:g}x ATR"
+                    + (f", moved to the entry price at +{S['BE_R']:g}R" if S.get("BE_R") else "")
+                    + f", closed at {LIVE_FLATTEN_AT}") + (f"; risk {S['RISK_PCT']:g}% per trade, max {S['MAX_POS_PCT']:g}% per position, "
                f"max {max_trades} trades/day, max {S['MAX_INVESTED_PCT']:g}% invested, {S['SLIPPAGE_PCT']:g}% slippage")
     return {
         "start": eq_rows[0]["date"], "end": eq_rows[-1]["date"], "trading_days": len(eq_rows),
@@ -530,15 +561,18 @@ def main() -> None:
             variant = name if wd == 0 else f"{name}_withdraw70"
             if name == "sip_old":
                 trades, eq, months, withdrawn = simulate_live(days, cands["sip_old"], bars_by, spy, wd)
-            elif name in ("sip_live", "sip_live_slip10"):
+            elif name in LIVE_TWEAKS:
                 # the live day trader's rules = the Stocks in Play breakout, first come first served within
                 # the live bot's own limit (config.SIP_MAX_INVESTED_PCT), entries until 3:30 PM, closed at
-                # 3:55 PM; optionally with double slippage
+                # 3:55 PM; each version changes one or two settings (LIVE_TWEAKS)
                 saved = dict(S)
-                S["SLIPPAGE_PCT"] = saved["SLIPPAGE_PCT"] * (2 if name == "sip_live_slip10" else 1)
+                tw = dict(LIVE_TWEAKS[name])
+                top, min_rv = tw.pop("TOP", S["TOP_SIP"]), tw.pop("MIN_RVOL", S["MIN_RVOL_SIP"])
+                S.update(tw)
                 S["MAX_INVESTED_PCT"] = getattr(config, "SIP_MAX_INVESTED_PCT", saved["MAX_INVESTED_PCT"])
+                picks = {d: [c for c in cs if c[1] <= top and c[3]["rvol"] >= min_rv] for d, cs in cands["sip"].items()}
                 try:
-                    trades, eq, months, withdrawn = simulate(days, cands["sip"], bars_by, max_trades, spy, wd,
+                    trades, eq, months, withdrawn = simulate(days, picks, bars_by, max_trades, spy, wd,
                                                              flatten_at=LIVE_FLATTEN_AT)
                     s = summarize(name, trades, eq, months, withdrawn, wd, max_trades)
                 finally:
@@ -546,7 +580,7 @@ def main() -> None:
                     S.update(saved)
             else:
                 trades, eq, months, withdrawn = simulate(days, cands[name], bars_by, max_trades, spy, wd)
-            if name not in ("sip_live", "sip_live_slip10"):
+            if name not in LIVE_TWEAKS:
                 s = summarize(name, trades, eq, months, withdrawn, wd, max_trades)
             s.update(variant=variant, strategy=name, order=order,
                      label=label + (", 70% of profits withdrawn" if wd else ""))
