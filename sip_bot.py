@@ -490,7 +490,7 @@ def build_picks(broker, day: str, exclude: set[str], prepared=None) -> list[dict
     return picks
 
 
-def run(phase: str, dry_run: bool, past_day: str | None = None):
+def run(phase: str, dry_run: bool, past_day: str | None = None, test_minutes: int = 0):
     if not config.SIP_ENABLED and phase != "plan":
         log.info("Day trader is turned off (SIP_ENABLED = False).")
         return
@@ -542,6 +542,8 @@ def run(phase: str, dry_run: bool, past_day: str | None = None):
             return
 
     end = job_until if phase == "day" else flat_at
+    if test_minutes:  # short test runs: stop after a few minutes
+        end = min(end, now_ny() + timedelta(minutes=test_minutes))
     last_save = 0.0
     while now_ny() < end:
         t = now_ny()
@@ -575,9 +577,12 @@ def main():
     ap.add_argument("--phase", choices=["day", "close", "plan"], required=True)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--day", help="with --phase plan: show the picks for an earlier session (YYYY-MM-DD)")
+    ap.add_argument("--minutes", type=int, default=0, help="stop the phase after this many minutes (testing)")
     a = ap.parse_args()
+    if a.minutes and not (a.dry_run or config.SIP_DRY_RUN):
+        ap.error("--minutes is only for dry runs")
     try:
-        run(a.phase, a.dry_run or config.SIP_DRY_RUN, a.day)
+        run(a.phase, a.dry_run or config.SIP_DRY_RUN, a.day, a.minutes)
     except Exception as exc:  # noqa: BLE001
         log.exception("Day trader failed: %s", exc)
         sys.exit(1)

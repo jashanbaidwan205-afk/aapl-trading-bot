@@ -25,6 +25,9 @@ on:
         description: "Only show today's picks, then stop"
         type: boolean
         default: false
+      test_minutes:
+        description: "Dry-run test: stop the morning job after this many minutes (blank = full day)"
+        default: ""
 
 permissions:
   contents: write
@@ -48,7 +51,7 @@ jobs:
           if [ "${{ github.event_name }}" != "schedule" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
             echo "dry=${{ inputs.dry_run }}" >> "$GITHUB_OUTPUT"
-            if [ "${{ inputs.plan_only }}" = "true" ]; then echo "full=false" >> "$GITHUB_OUTPUT"; else echo "full=true" >> "$GITHUB_OUTPUT"; fi
+            if [ "${{ inputs.plan_only }}" = "true" ] || [ -n "${{ inputs.test_minutes }}" ]; then echo "full=false" >> "$GITHUB_OUTPUT"; else echo "full=true" >> "$GITHUB_OUTPUT"; fi
             exit 0
           fi
           echo "dry=false" >> "$GITHUB_OUTPUT"
@@ -73,7 +76,14 @@ jobs:
         env:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-        run: python sip_bot.py $([ "${{ steps.gate.outputs.full }}" = "true" ] && echo "--phase day" || echo "--phase plan --day $(TZ=America/New_York date +%F)") $([ "${{ steps.gate.outputs.dry }}" = "true" ] && echo --dry-run)
+        run: |
+          if [ -n "${{ inputs.test_minutes }}" ]; then
+            python sip_bot.py --phase day --dry-run --minutes "${{ inputs.test_minutes }}"
+          elif [ "${{ steps.gate.outputs.full }}" = "true" ]; then
+            python sip_bot.py --phase day $([ "${{ steps.gate.outputs.dry }}" = "true" ] && echo --dry-run)
+          else
+            python sip_bot.py --phase plan --day "$(TZ=America/New_York date +%F)" --dry-run
+          fi
 
       - name: Hand state to the afternoon job
         if: always() && steps.gate.outputs.run == 'true'
