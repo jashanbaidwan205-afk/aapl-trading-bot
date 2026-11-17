@@ -14,6 +14,10 @@ on:
         description: "Dry run (pick stocks and log, place no orders)"
         type: boolean
         default: true
+      plan_only:
+        description: "Only show today's picks, then stop"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -29,15 +33,19 @@ jobs:
     outputs:
       run: ${{ steps.gate.outputs.run }}
       dry: ${{ steps.gate.outputs.dry }}
+      full: ${{ steps.gate.outputs.full }}
     steps:
       - name: Check time
         id: gate
         run: |
           if [ "${{ github.event_name }}" != "schedule" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
-            echo "dry=${{ inputs.dry_run }}" >> "$GITHUB_OUTPUT"; exit 0
+            echo "dry=${{ inputs.dry_run }}" >> "$GITHUB_OUTPUT"
+            if [ "${{ inputs.plan_only }}" = "true" ]; then echo "full=false" >> "$GITHUB_OUTPUT"; else echo "full=true" >> "$GITHUB_OUTPUT"; fi
+            exit 0
           fi
           echo "dry=false" >> "$GITHUB_OUTPUT"
+          echo "full=true" >> "$GITHUB_OUTPUT"
           if [ "$(TZ=America/New_York date +%Z)" = "EDT" ]; then wanted="20 13 * * 1-5"; else wanted="20 14 * * 1-5"; fi
           if [ "${{ github.event.schedule }}" = "$wanted" ]; then echo "run=true" >> "$GITHUB_OUTPUT"
           else echo "Not 9:20 AM New York time for this trigger; skipping."; echo "run=false" >> "$GITHUB_OUTPUT"; fi
@@ -58,7 +66,7 @@ jobs:
         env:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-        run: python sip_bot.py --phase day $([ "${{ steps.gate.outputs.dry }}" = "true" ] && echo --dry-run)
+        run: python sip_bot.py $([ "${{ steps.gate.outputs.full }}" = "true" ] && echo "--phase day" || echo "--phase plan --day $(TZ=America/New_York date +%F)") $([ "${{ steps.gate.outputs.dry }}" = "true" ] && echo --dry-run)
 
       - name: Hand state to the afternoon job
         if: always() && steps.gate.outputs.run == 'true'
@@ -74,7 +82,7 @@ jobs:
   close:
     needs: day
     # always(): even if the morning job failed, the afternoon job still closes positions
-    if: always() && needs.day.outputs.run == 'true'
+    if: always() && needs.day.outputs.run == 'true' && needs.day.outputs.full == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
