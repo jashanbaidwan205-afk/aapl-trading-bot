@@ -271,7 +271,8 @@ def run(dry_run: bool, symbols_override: list[str] | None) -> None:
         row["signal"] = a["signal"] or ""
         row["date"] = a["date"]
         if sym not in held and a["close"] < config.MIN_PRICE:
-            row["note"] = f"under ${config.MIN_PRICE:g}"
+            row["signal"] = ""
+            row["note"] = f"under ${config.MIN_PRICE:g}" + (f"; ignored its {a['signal'].lower()} crossover" if a["signal"] else "")
             continue
         if a["signal"] == "SELL":
             sells.append(row)
