@@ -20,7 +20,9 @@ import logging
 import os
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import yfinance as yf
@@ -28,8 +30,9 @@ from dotenv import load_dotenv
 
 import config
 
-BASE_DIR = Path(__file__).resolve().parent
 NY_TZ = "America/New_York"
+
+BASE_DIR = Path(__file__).resolve().parent
 
 
 # ---------------------------------------------------------------------------
@@ -38,7 +41,9 @@ NY_TZ = "America/New_York"
 def setup_logging() -> logging.Logger:
     logger = logging.getLogger("ma_bot")
     logger.setLevel(logging.INFO)
-    fmt = logging.Formatter("%(asctime)s  %(levelname)-7s  %(message)s", "%Y-%m-%d %H:%M:%S")
+    fmt = logging.Formatter("%(asctime)s ET  %(levelname)-7s  %(message)s", "%Y-%m-%d %H:%M:%S")
+    # Always log in New York time, even on cloud servers that run in UTC.
+    fmt.converter = lambda secs: datetime.fromtimestamp(secs, ZoneInfo(NY_TZ)).timetuple()
     handlers = [logging.FileHandler(BASE_DIR / config.LOG_FILE, encoding="utf-8")]
     if sys.stdout is not None:  # no console when run hidden by Task Scheduler (pythonw)
         handlers.append(logging.StreamHandler(sys.stdout))
@@ -183,7 +188,7 @@ def run(dry_run: bool) -> None:
     if not dry_run:
         client = get_trading_client()
         if not market_trades_today(client):
-            log.info("Market is closed today (weekend or holiday). Nothing to do.")
+            log.info("Market is not open for trading now (weekend, holiday, or after hours). Nothing to do.")
             return
 
     df = fetch_prices(symbol, config.LOOKBACK_DAYS)
