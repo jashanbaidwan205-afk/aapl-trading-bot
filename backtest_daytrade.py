@@ -49,6 +49,11 @@ import backtest_orb as orb
 import config
 
 BASE = Path(__file__).resolve().parent
+
+
+def to_json(obj, **kw) -> str:
+    """json.dumps that also handles NumPy numbers."""
+    return json.dumps(obj, default=lambda o: o.item() if hasattr(o, "item") else str(o), **kw)
 OUT = BASE / "backtest_daytrade_results"
 START_CASH = orb.START_CASH
 
@@ -314,7 +319,7 @@ def summarize(name, trades, eq_rows, months, withdrawn, withdraw_pct, max_trades
         "profit_factor": round(gw / gl, 2) if gl else None,
         "avg_r": round(sum(t["r_multiple"] for t in trades) / len(trades), 3) if trades else None,
         "net_pl": round(sum(t["pnl"] for t in trades), 2),
-        "months_positive": sum(m["realized_pl"] > 0 for m in months), "months": len(months),
+        "months_positive": int(sum(float(m["realized_pl"]) > 0 for m in months)), "months": len(months),
         "settings": settings,
         "run_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
@@ -362,7 +367,7 @@ def main() -> None:
                 trades_all += [dict(t, variant=variant, id=f"{variant}-{i}")
                                for i, t in enumerate(sorted(trades, key=lambda t: (t["day"], t["entry_hm"]), reverse=True), 1)]
             print(f"\n== {s['label']} ==")
-            print(json.dumps({k: s[k] for k in ("end_value_plus_withdrawn", "total_return_incl_withdrawn_pct",
+            print(to_json({k: s[k] for k in ("end_value_plus_withdrawn", "total_return_incl_withdrawn_pct",
                                                  "total_withdrawn", "max_drawdown_pct", "trades", "win_rate_pct",
                                                  "profit_factor", "avg_r", "months_positive", "months")}))
 
@@ -373,7 +378,7 @@ def main() -> None:
     note = [{"label": "Made by", "value": "backtest_daytrade.py (code attached to the summary source)"}]
     for fname, rows, m in (("dt_summary.json", summ, meta), ("dt_equity.json", eq_all, note),
                            ("dt_months.json", months_all, note), ("dt_trades.json", trades_all, note)):
-        (OUT / fname).write_text(json.dumps({"rows": rows, "meta": m}, separators=(",", ":")))
+        (OUT / fname).write_text(to_json({"rows": rows, "meta": m}, separators=(",", ":")))
 
 
 if __name__ == "__main__":
