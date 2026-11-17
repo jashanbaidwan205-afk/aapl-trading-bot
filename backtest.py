@@ -61,8 +61,12 @@ def sp500_symbols(refresh: bool) -> list[str]:
 def download(symbols: list[str], years: int, refresh: bool) -> dict[str, pd.DataFrame]:
     """Daily Open/Close/Volume per field, one column per symbol."""
     path = CACHE / f"prices_{years}y.pkl"
-    if path.exists() and not refresh:
-        return pickle.loads(path.read_bytes())
+    if not refresh:
+        # Reuse any cached download that covers at least this many years.
+        for n in range(years, 11):
+            p = CACHE / f"prices_{n}y.pkl"
+            if p.exists():
+                return pickle.loads(p.read_bytes())
     period = f"{years + 1}y"  # extra year so the 50-day average is ready on day one
     frames = []
     for i in range(0, len(symbols), 100):
@@ -88,7 +92,7 @@ def download(symbols: list[str], years: int, refresh: bool) -> dict[str, pd.Data
 # ---------------------------------------------------------------------------
 # Simulation
 # ---------------------------------------------------------------------------
-def run(years: int, slippage_pct: float, refresh: bool) -> dict:
+def run(years: int, slippage_pct: float, refresh: bool, withdraw_pct: float = 0.0) -> dict:
     CACHE.mkdir(exist_ok=True)
     OUT.mkdir(exist_ok=True)
     symbols = sp500_symbols(refresh)
@@ -109,8 +113,11 @@ def run(years: int, slippage_pct: float, refresh: bool) -> dict:
 
     cash = START_CASH
     pos: dict[str, dict] = {}       # symbol -> {qty, price, date}
-    trades, equity_rows = [], []
-    signals_seen = skipped_full = skipped_cash = 0
+    trades, equity_rows, months = [], [], []
+    signals_seen = skipped_full = skipped_cash = skipped_cap = 0
+    cap_pct = getattr(config, "MAX_INVESTED_PCT", 100.0)
+    withdrawn_total = 0.0
+    month_pnl = 0.0
 
     def value_at(i: int) -> float:
         return cash + sum(p["qty"] * (closes.iloc[i][s] if pd.notna(closes.iloc[i][s]) else p["price"])
@@ -134,6 +141,7 @@ def run(years: int, slippage_pct: float, refresh: bool) -> dict:
                 fill = o[s] * (1 - slip)
                 cash += p["qty"] * fill
                 pnl = (fill - p["price"]) * p["qty"]
+                month_pnl += pnl
                 trades.append({"symbol": s, "bought": p["date"], "sold": day.strftime("%Y-%m-%d"),
                                "shares": p["qty"], "buy_price": round(p["price"], 2), "sell_price": round(fill, 2),
                                "pnl": round(pnl, 2), "return_pct": round((fill / p["price"] - 1) * 100, 2),
@@ -142,6 +150,8 @@ def run(years: int, slippage_pct: float, refresh: bool) -> dict:
         # Buys, most active first
         equity_prev = value_at(prev)
         budget = equity_prev * config.POSITION_SIZE_PCT / 100
+        invested = sum(p["qty"] * (closes.iloc[prev][s] if pd.notna(closes.iloc[prev][s]) else p["price"])
+                       for s, p in pos.items())
         buys = [s for s in active if bool(buy_sig.iloc[prev].get(s, False))]
         for s in sorted(buys, key=lambda x: rank[x]):
             signals_seen += 1
@@ -158,11 +168,27 @@ def run(years: int, slippage_pct: float, refresh: bool) -> dict:
             if qty * fill > cash:
                 skipped_cash += 1
                 continue
+            if invested + qty * c_prev > equity_prev * cap_pct / 100:
+                skipped_cap += 1
+                continue
+            invested += qty * c_prev
             cash -= qty * fill
             pos[s] = {"qty": qty, "price": fill, "date": day.strftime("%Y-%m-%d")}
 
+        # Month end: withdraw a share of the month's net profit from closed trades
+        month_end = i == len(days) - 1 or days[i + 1].month != day.month
+        if month_end:
+            take = min(cash, max(0.0, month_pnl) * withdraw_pct / 100)
+            cash -= take
+            withdrawn_total += take
+            months.append({"month": day.strftime("%Y-%m"), "realized_pl": round(month_pnl, 2),
+                           "withdrawn": round(take, 2), "withdrawn_total": round(withdrawn_total, 2),
+                           "account_value": round(value_at(i), 2)})
+            month_pnl = 0.0
+
         equity_rows.append({"date": day.strftime("%Y-%m-%d"), "equity": round(value_at(i), 2),
-                            "positions": len(pos), "cash": round(cash, 2)})
+                            "positions": len(pos), "cash": round(cash, 2),
+                            "withdrawn_total": round(withdrawn_total, 2)})
 
     # Benchmark: buy and hold SPY from the first day's open
     spy = closes[BENCHMARK].iloc[start_i:]
@@ -200,6 +226,11 @@ def run(years: int, slippage_pct: float, refresh: bool) -> dict:
         "avg_invested_pct": round(sum(1 - r["cash"] / r["equity"] for r in equity_rows) / len(equity_rows) * 100, 1),
         "open_positions_at_end": len(pos), "open_value_at_end": round(float(open_value), 2),
         "buy_signals": signals_seen, "skipped_full": skipped_full, "skipped_cash": skipped_cash,
+        "skipped_cap": skipped_cap, "max_invested_pct": cap_pct,
+        "withdraw_pct": withdraw_pct, "total_withdrawn": round(withdrawn_total, 2),
+        "end_value_plus_withdrawn": round(float(eq.iloc[-1]) + withdrawn_total, 2),
+        "total_gain_incl_withdrawn": round(float(eq.iloc[-1]) + withdrawn_total - START_CASH, 2),
+        "total_return_incl_withdrawn_pct": round((float(eq.iloc[-1]) + withdrawn_total) / START_CASH * 100 - 100, 2),
         "slippage_pct": slippage_pct, "universe": f"S&P 500 ({len(symbols)} stocks today)",
         "settings": f"top {config.MOST_ACTIVE_TOP} by volume, min ${config.MIN_PRICE:g}, "
                     f"SMA{config.SHORT_MA_PERIOD}/{config.LONG_MA_PERIOD}, {config.POSITION_SIZE_PCT:g}% per buy, "
@@ -218,6 +249,7 @@ def run(years: int, slippage_pct: float, refresh: bool) -> dict:
     (OUT / "summary.json").write_text(json.dumps({"rows": [summary], "meta": meta}, indent=1))
     (OUT / "equity.json").write_text(json.dumps({"rows": equity_rows, "meta": note}, separators=(",", ":")))
     (OUT / "trades.json").write_text(json.dumps({"rows": trades, "meta": note}, separators=(",", ":")))
+    (OUT / "months.json").write_text(json.dumps({"rows": months, "meta": note}, indent=1))
     return summary
 
 
@@ -229,15 +261,20 @@ def main() -> None:
     ap.add_argument("--size", type=float, help="override POSITION_SIZE_PCT from config.py")
     ap.add_argument("--max", type=int, help="override MAX_POSITIONS from config.py")
     ap.add_argument("--out", help="folder for results (default backtest_results)")
+    ap.add_argument("--cap", type=float, help="override MAX_INVESTED_PCT from config.py")
+    ap.add_argument("--withdraw", type=float, default=0.0,
+                    help="each month end, withdraw this %% of the month's net profit from closed trades")
     a = ap.parse_args()
     global OUT
     if a.size is not None:
         config.POSITION_SIZE_PCT = a.size
     if a.max is not None:
         config.MAX_POSITIONS = a.max
+    if a.cap is not None:
+        config.MAX_INVESTED_PCT = a.cap
     if a.out:
         OUT = BASE / a.out
-    s = run(a.years, a.slippage, a.refresh)
+    s = run(a.years, a.slippage, a.refresh, a.withdraw)
     print(json.dumps(s, indent=1))
 
 

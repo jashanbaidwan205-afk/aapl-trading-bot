@@ -23,8 +23,9 @@ LONG_MA_PERIOD = 50           # Slow moving average (days)
 LOOKBACK_DAYS = 100           # Trading days of daily price history used
 
 # --- Position sizing ------------------------------------------------------------
-POSITION_SIZE_PCT = 2.0       # Each buy spends this % of total account value (whole shares)
+POSITION_SIZE_PCT = 5.0       # Each buy spends this % of total account value (whole shares)
 MAX_POSITIONS = 10            # Most different stocks held at once
+MAX_INVESTED_PCT = 50.0       # Never let stocks held be worth more than this % of the account
 
 # --- Behaviour ----------------------------------------------------------------
 # True  = log what the bot WOULD do, but never send an order.

@@ -121,8 +121,11 @@ def most_active_symbols(top: int) -> list[str]:
     return [s.symbol for s in result.most_actives]
 
 
-def held_positions(client) -> dict[str, float]:
-    return {p.symbol: float(p.qty) for p in client.get_all_positions()}
+def held_positions(client) -> tuple[dict[str, float], dict[str, float]]:
+    """(shares held, market value) per symbol."""
+    positions = client.get_all_positions()
+    return ({p.symbol: float(p.qty) for p in positions},
+            {p.symbol: float(p.market_value or 0) for p in positions})
 
 
 def asset_is_tradable(client, symbol: str) -> tuple[bool, str]:
@@ -224,9 +227,9 @@ def quote_type(symbol: str) -> str:
 # ---------------------------------------------------------------------------
 def run(dry_run: bool, symbols_override: list[str] | None) -> None:
     validate_config()
-    log.info("---- Run start: most-active scan  SMA%d/SMA%d  size=%.1f%%  max=%d  dry_run=%s ----",
+    log.info("---- Run start: most-active scan  SMA%d/SMA%d  size=%.1f%%  max=%d  cap=%.0f%%  dry_run=%s ----",
              config.SHORT_MA_PERIOD, config.LONG_MA_PERIOD, config.POSITION_SIZE_PCT,
-             config.MAX_POSITIONS, dry_run)
+             config.MAX_POSITIONS, config.MAX_INVESTED_PCT, dry_run)
 
     key, secret = get_keys()
     client = get_trading_client() if (key and secret) else None
@@ -247,7 +250,7 @@ def run(dry_run: bool, symbols_override: list[str] | None) -> None:
     excluded = {s.upper() for s in config.EXCLUDE_SYMBOLS}
     active = [s for s in active if s.upper() not in excluded and s.isalpha()]
 
-    held = held_positions(client) if client else {}
+    held, held_value = held_positions(client) if client else ({}, {})
     if held:
         log.info("Holding %d stock(s): %s", len(held), ", ".join(f"{s} x{q:g}" for s, q in held.items()))
     universe = list(dict.fromkeys(active + list(held)))
@@ -307,6 +310,7 @@ def run(dry_run: bool, symbols_override: list[str] | None) -> None:
             r["action"] = "sold"; r["note"] = f"{qty:g} shares"
             log.info("Order submitted: SELL %g %s  id=%s  status=%s", qty, sym, order.id, order.status)
             held.pop(sym, None)
+            held_value.pop(sym, None)
             remember(r)
 
     # 4. Buys, most active first, within position and cash limits
@@ -315,6 +319,8 @@ def run(dry_run: bool, symbols_override: list[str] | None) -> None:
     cash = float(account.cash) if account else equity
     budget = equity * config.POSITION_SIZE_PCT / 100
     open_slots = config.MAX_POSITIONS - len(held)
+    invested = sum(held_value.values())
+    invest_cap = equity * config.MAX_INVESTED_PCT / 100
     for r in sorted(buys, key=lambda x: x["rank"] or 999):
         sym = r["symbol"]
         if already_done(r):
@@ -335,6 +341,10 @@ def run(dry_run: bool, symbols_override: list[str] | None) -> None:
         cost = qty * r["close"]
         if cost > cash:
             r["action"] = "skipped"; r["note"] = "not enough cash"; continue
+        if invested + cost > invest_cap:
+            r["action"] = "skipped"
+            r["note"] = f"would put more than {config.MAX_INVESTED_PCT:g}% of the account in stocks"
+            continue
         if dry_run:
             r["action"] = "would buy"; r["note"] = f"{qty} shares (~${cost:,.0f})"
             log.info("[DRY RUN] Would buy %d %s (~$%.0f). No order sent.", qty, sym, cost)
@@ -344,6 +354,7 @@ def run(dry_run: bool, symbols_override: list[str] | None) -> None:
             log.info("Order submitted: BUY %d %s  id=%s  status=%s", qty, sym, order.id, order.status)
             remember(r)
         cash -= cost
+        invested += cost
         open_slots -= 1
 
     if not buys and not sells:
