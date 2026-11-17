@@ -1,0 +1,66 @@
+name: AAPL MA Crossover Bot
+
+on:
+  schedule:
+    # GitHub cron runs in UTC. 9:30 AM New York is 13:30 UTC during daylight time (EDT)
+    # and 14:30 UTC during standard time (EST). Both are scheduled; the "Check time" step
+    # below keeps only the one that matches today's New York clock.
+    - cron: "30 13 * * 1-5"
+    - cron: "30 14 * * 1-5"
+  workflow_dispatch:   # lets you run it by hand from the Actions tab
+
+permissions:
+  contents: write      # needed to save trading_bot.log and bot_state.json back to the repo
+
+concurrency:
+  group: trading-bot
+  cancel-in-progress: false
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check time
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$(TZ=America/New_York date +%Z)" = "EDT" ]; then wanted="30 13 * * 1-5"; else wanted="30 14 * * 1-5"; fi
+          if [ "${{ github.event.schedule }}" = "$wanted" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "This trigger is not 9:30 AM New York time today; skipping."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.run == 'true'
+
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        if: steps.gate.outputs.run == 'true'
+        run: pip install -r requirements.txt
+
+      - name: Run bot
+        if: steps.gate.outputs.run == 'true'
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: python trading_bot.py
+
+      - name: Save log and state to the repo
+        if: always() && steps.gate.outputs.run == 'true'
+        run: |
+          git config user.name "trading-bot"
+          git config user.email "trading-bot@users.noreply.github.com"
+          git add -f trading_bot.log bot_state.json 2>/dev/null || git add -f trading_bot.log
+          if git diff --cached --quiet; then echo "Nothing to save"; exit 0; fi
+          git commit -m "Bot run $(TZ=America/New_York date '+%Y-%m-%d %H:%M %Z')"
+          git push

@@ -1,0 +1,10 @@
+# Secrets - never commit
+.env
+
+# Local-only files (the cloud run saves its own log/state with git add -f)
+bot_state.json
+trading_bot.log
+set-alpaca-keys.ps1
+
+__pycache__/
+.venv/
