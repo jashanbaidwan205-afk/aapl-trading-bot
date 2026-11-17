@@ -226,7 +226,17 @@ def main() -> None:
     ap.add_argument("--years", type=int, default=3)
     ap.add_argument("--slippage", type=float, default=0.05, help="percent against you on each fill")
     ap.add_argument("--refresh", action="store_true", help="re-download the S&P 500 list and prices")
+    ap.add_argument("--size", type=float, help="override POSITION_SIZE_PCT from config.py")
+    ap.add_argument("--max", type=int, help="override MAX_POSITIONS from config.py")
+    ap.add_argument("--out", help="folder for results (default backtest_results)")
     a = ap.parse_args()
+    global OUT
+    if a.size is not None:
+        config.POSITION_SIZE_PCT = a.size
+    if a.max is not None:
+        config.MAX_POSITIONS = a.max
+    if a.out:
+        OUT = BASE / a.out
     s = run(a.years, a.slippage, a.refresh)
     print(json.dumps(s, indent=1))
 
