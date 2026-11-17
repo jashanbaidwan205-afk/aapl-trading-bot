@@ -26,11 +26,26 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt lxml
 
+      # Reuse 5-minute bars downloaded by earlier runs; only new days/stocks are fetched.
+      - name: Restore saved price bars
+        uses: actions/cache/restore@v4
+        with:
+          path: backtest_orb_cache
+          key: orb-bars-${{ github.run_id }}
+          restore-keys: orb-bars-
+
       - name: Run backtest
         env:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
         run: python backtest_orb.py --years ${{ inputs.years }}
+
+      - name: Save price bars for next time
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: backtest_orb_cache
+          key: orb-bars-${{ github.run_id }}
 
       - name: Save results
         uses: actions/upload-artifact@v4

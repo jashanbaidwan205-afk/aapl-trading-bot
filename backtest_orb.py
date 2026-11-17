@@ -32,10 +32,13 @@ import io
 import json
 import math
 import os
+import pickle
 import time
-from datetime import datetime, timedelta, timezone
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import requests
 import yfinance as yf
@@ -45,6 +48,7 @@ import config
 
 BASE = Path(__file__).resolve().parent
 OUT = BASE / "backtest_orb_results"
+CACHE_FILE = BASE / "backtest_orb_cache" / "bars_5m.pkl"   # saved between runs
 NY = "America/New_York"
 START_CASH = 100_000.0
 
@@ -101,14 +105,36 @@ def minute_bars(symbols: list[str], start, end) -> pd.DataFrame:
     feed = DataFeed.SIP
     to_alpaca = {s: s.replace("-", ".") for s in symbols}  # Yahoo BRK-B -> Alpaca BRK.B
     from_alpaca = {v: k for k, v in to_alpaca.items()}
+    start_day, end_day = start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
 
-    def fetch(chunk):
+    # Saved bars from earlier runs: {"bars": {sym: DataFrame}, "span": {sym: (first_day, last_day)}}
+    cache = {"bars": {}, "span": {}}
+    if CACHE_FILE.exists():
+        try:
+            cache = pickle.loads(CACHE_FILE.read_bytes())
+        except Exception:  # noqa: BLE001
+            print("  saved bars unreadable; downloading fresh")
+
+    # Work out what each stock still needs: nothing, the newest days, or everything
+    jobs: dict[str, list[str]] = {}
+    for s in symbols:
+        first, last = cache["span"].get(s, (None, None))
+        if first is None or first > start_day:
+            jobs.setdefault(start_day, []).append(s)
+        elif last < end_day:
+            nxt = (pd.Timestamp(last) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+            jobs.setdefault(nxt, []).append(s)
+    todo = sum(len(v) for v in jobs.values())
+    print(f"  saved bars cover {len(symbols) - todo}/{len(symbols)} stocks; downloading {todo}")
+
+    def fetch(chunk, from_day):
         nonlocal feed
-        for attempt in range(3):
+        t0 = pd.Timestamp(from_day, tz=NY).to_pydatetime()
+        for attempt in range(4):
             try:
                 req = StockBarsRequest(symbol_or_symbols=[to_alpaca[s] for s in chunk],
                                        timeframe=TimeFrame(5, TimeFrameUnit.Minute),
-                                       start=start, end=end, adjustment=Adjustment.SPLIT, feed=feed)
+                                       start=t0, end=end, adjustment=Adjustment.SPLIT, feed=feed)
                 return client.get_stock_bars(req).df
             except Exception as exc:  # noqa: BLE001
                 msg = str(exc).lower()
@@ -119,39 +145,57 @@ def minute_bars(symbols: list[str], start, end) -> pd.DataFrame:
                 if "invalid symbol" in msg:
                     raise ValueError(msg) from exc
                 print(f"  minute bars attempt {attempt + 1} failed: {exc}")
-                time.sleep(5 * (attempt + 1))
+                time.sleep(10 * (attempt + 1))
         return None
 
-    parts, missing = [], []
-    for i in range(0, len(symbols), 25):
-        chunk = symbols[i:i + 25]
+    def fetch_chunk(chunk, from_day):
+        """Returns (frames, missing). One bad ticker only drops that stock."""
         try:
-            df = fetch(chunk)
-            if df is not None:
-                parts.append(df)
-            else:
-                missing += chunk
+            df = fetch(chunk, from_day)
+            return ([df] if df is not None else []), ([] if df is not None else list(chunk))
         except ValueError:
-            for s in chunk:  # one bad ticker: fetch the rest one by one
+            frames, missing = [], []
+            for s in chunk:
                 try:
-                    df = fetch([s])
-                    if df is not None:
-                        parts.append(df)
-                    else:
-                        missing.append(s)
+                    df = fetch([s], from_day)
+                    (frames.append(df) if df is not None else missing.append(s))
                 except ValueError:
                     missing.append(s)
-        print(f"  minute bars {min(i + 25, len(symbols))}/{len(symbols)}")
+            return frames, missing
+
+    tasks = [(syms[i:i + 25], day) for day, syms in jobs.items() for i in range(0, len(syms), 25)]
+    parts, missing, done = [], [], 0
+    with ThreadPoolExecutor(max_workers=3) as pool:  # 3 at once stays inside Alpaca's free rate limit
+        for frames, miss in pool.map(lambda t: fetch_chunk(*t), tasks):
+            parts += frames
+            missing += miss
+            done += 1
+            print(f"  downloaded batch {done}/{len(tasks)}")
     if missing:
         print(f"  no minute data for {len(missing)} stock(s): {', '.join(missing)}")
-    bars = pd.concat(parts)
-    bars = bars.reset_index()
-    bars["symbol"] = bars["symbol"].map(lambda s: from_alpaca.get(s, s))
-    bars["ts"] = pd.to_datetime(bars["timestamp"], utc=True).dt.tz_convert(NY)
-    t = bars["ts"].dt.strftime("%H:%M")
-    bars = bars[(t >= "09:30") & (t < "16:00")]
-    bars["day"] = bars["ts"].dt.strftime("%Y-%m-%d")
-    bars["hm"] = bars["ts"].dt.strftime("%H:%M")
+
+    if parts:
+        new = pd.concat(parts).reset_index()
+        new["symbol"] = new["symbol"].map(lambda s: from_alpaca.get(s, s))
+        ts = pd.to_datetime(new["timestamp"], utc=True).dt.tz_convert(NY)
+        new["day"], new["hm"] = ts.dt.strftime("%Y-%m-%d"), ts.dt.strftime("%H:%M")
+        new = new[(new.hm >= "09:30") & (new.hm < "16:00")][["symbol", "day", "hm", "open", "high", "low", "close"]]
+        fetched = {s for day_syms in jobs.values() for s in day_syms} - set(missing)
+        for s, g in new.groupby("symbol"):
+            old = cache["bars"].get(s)
+            g = g.drop(columns="symbol")
+            if old is not None and cache["span"][s][0] <= start_day:
+                g = pd.concat([old, g]).drop_duplicates(["day", "hm"], keep="last")
+            cache["bars"][s] = g.sort_values(["day", "hm"]).reset_index(drop=True)
+        for s in fetched:
+            first = cache["span"].get(s, (start_day, None))[0]
+            cache["span"][s] = (min(first, start_day) if first else start_day, end_day)
+        CACHE_FILE.parent.mkdir(exist_ok=True)
+        CACHE_FILE.write_bytes(pickle.dumps(cache))
+
+    out = [g.assign(symbol=s) for s, g in cache["bars"].items() if s in set(symbols)]
+    bars = pd.concat(out)
+    bars = bars[(bars.day >= start_day) & (bars.day <= end_day)]
     print(f"  {len(bars):,} bars ({feed.value} feed)")
     return bars[["symbol", "day", "hm", "open", "high", "low", "close"]]
 
@@ -164,47 +208,59 @@ def or_end_hm() -> str:
     return f"{9 + m // 60:02d}:{m % 60:02d}"
 
 
+class DayBars:
+    """One stock's bars for one day as NumPy arrays (much faster than DataFrame rows)."""
+    __slots__ = ("hm", "open", "high", "low", "close")
+
+    def __init__(self, df: pd.DataFrame):
+        df = df.sort_values("hm")
+        self.hm = df["hm"].to_numpy()
+        self.open, self.high = df["open"].to_numpy(float), df["high"].to_numpy(float)
+        self.low, self.close = df["low"].to_numpy(float), df["close"].to_numpy(float)
+
+    def __len__(self):
+        return len(self.hm)
+
+
 _found: dict = {}
 
 
-def find_trade(b: pd.DataFrame, side: str, key=None):
-    """Given one stock's bars for one day, return (entry_hm, entry_px, stop, bars_after) or None."""
+def find_trade(b: DayBars, side: str, key=None):
+    """Return (entry_hm, entry_px, stop, entry_index) for the day's first breakout, or None."""
     if key is not None:
         if (key, side) not in _found:
             _found[(key, side)] = find_trade(b, side)
         return _found[(key, side)]
     end_or = or_end_hm()
-    rng = b[b.hm < end_or]
-    if len(rng) < P["OR_MINUTES"] // 5:
+    in_range = b.hm < end_or
+    if in_range.sum() < P["OR_MINUTES"] // 5:
         return None
-    hi, lo = rng.high.max(), rng.low.min()
-    after = b[b.hm >= end_or].reset_index(drop=True)
-    for k in range(len(after) - 1):
-        bar = after.iloc[k]
-        if bar.hm >= P["ENTRY_UNTIL"]:
-            return None
-        trigger = bar.close > hi if side == "long" else bar.close < lo
-        if trigger:
-            nxt = after.iloc[k + 1]
-            return nxt.hm, float(nxt.open), float(lo if side == "long" else hi), after.iloc[k + 1:]
-    return None
+    hi, lo = b.high[in_range].max(), b.low[in_range].min()
+    window = (~in_range) & (b.hm < P["ENTRY_UNTIL"])
+    trig = window & ((b.close > hi) if side == "long" else (b.close < lo))
+    trig[-1] = False  # need a next bar to enter on
+    if not trig.any():
+        return None
+    k = int(np.argmax(trig)) + 1
+    return b.hm[k], float(b.open[k]), float(lo if side == "long" else hi), k
 
 
-def exit_trade(rest: pd.DataFrame, side: str, entry: float, stop: float, target: float):
+def exit_trade(b: DayBars, k: int, side: str, entry: float, stop: float, target: float):
+    """Exit from bar k on: stop first, then target, else the last bar's close."""
     slip = P["SLIPPAGE_PCT"] / 100
-    for _, bar in rest.iterrows():
-        if side == "long":
-            if bar.low <= stop:
-                return bar.hm, min(stop, bar.open) * (1 - slip), "stop"
-            if bar.high >= target:
-                return bar.hm, max(target, bar.open) * (1 - slip), "target"
-        else:
-            if bar.high >= stop:
-                return bar.hm, max(stop, bar.open) * (1 + slip), "stop"
-            if bar.low <= target:
-                return bar.hm, min(target, bar.open) * (1 + slip), "target"
-    last = rest.iloc[-1]
-    return last.hm, float(last.close) * ((1 - slip) if side == "long" else (1 + slip)), "close"
+    lo, hi, op = b.low[k:], b.high[k:], b.open[k:]
+    hit_stop = (lo <= stop) if side == "long" else (hi >= stop)
+    hit_tgt = (hi >= target) if side == "long" else (lo <= target)
+    n = len(lo)
+    i_stop = int(np.argmax(hit_stop)) if hit_stop.any() else n
+    i_tgt = int(np.argmax(hit_tgt)) if hit_tgt.any() else n
+    if i_stop <= i_tgt and i_stop < n:  # same bar: assume the stop hit first
+        px = min(stop, op[i_stop]) if side == "long" else max(stop, op[i_stop])
+        return b.hm[k + i_stop], px * ((1 - slip) if side == "long" else (1 + slip)), "stop"
+    if i_tgt < n:
+        px = max(target, op[i_tgt]) if side == "long" else min(target, op[i_tgt])
+        return b.hm[k + i_tgt], px * ((1 - slip) if side == "long" else (1 + slip)), "target"
+    return b.hm[-1], float(b.close[-1]) * ((1 - slip) if side == "long" else (1 + slip)), "close"
 
 
 def simulate(days, lists, bars_by, spy, sides, withdraw_pct):
@@ -217,7 +273,7 @@ def simulate(days, lists, bars_by, spy, sides, withdraw_pct):
         cands = []
         for rank, sym in enumerate(lists[day], start=1):
             b = bars_by.get((sym, day))
-            if b is None or b.empty:
+            if b is None or len(b) == 0:
                 continue
             for side in sides:
                 ft = find_trade(b, side, key=(sym, day))
@@ -226,7 +282,7 @@ def simulate(days, lists, bars_by, spy, sides, withdraw_pct):
         cands.sort(key=lambda c: (c[0], c[1]))
         open_trades, taken = [], 0
         day_pnl = 0.0
-        for hm, rank, sym, side, (ehm, raw_entry, stop, rest) in cands:
+        for hm, rank, sym, side, (ehm, raw_entry, stop, k) in cands:
             if taken >= P["MAX_TRADES_PER_DAY"]:
                 break
             open_trades = [t for t in open_trades if t["exit_hm"] > ehm]
@@ -243,7 +299,7 @@ def simulate(days, lists, bars_by, spy, sides, withdraw_pct):
             if invested + qty * entry > equity * P["MAX_INVESTED_PCT"] / 100:
                 continue
             target = entry + P["TARGET_R"] * risk_ps if side == "long" else entry - P["TARGET_R"] * risk_ps
-            xhm, xpx, why = exit_trade(rest, side, entry, stop, target)
+            xhm, xpx, why = exit_trade(bars_by[(sym, day)], k, side, entry, stop, target)
             pnl = (xpx - entry) * qty if side == "long" else (entry - xpx) * qty
             t = {"day": day, "symbol": sym, "side": side, "entry_hm": ehm, "exit_hm": xhm, "shares": qty,
                  "entry": round(entry, 2), "stop": round(stop, 2), "target": round(target, 2),
@@ -338,7 +394,7 @@ def main() -> None:
     end = pd.Timestamp(days[-1], tz=NY) + pd.Timedelta(hours=23)
     bars = minute_bars(union, start.to_pydatetime(), end.to_pydatetime())
     feed_note = "Alpaca 5-minute bars (split-adjusted); Yahoo Finance daily prices for the stock list and SPY"
-    bars_by = {k: g.sort_values("hm") for k, g in bars.groupby(["symbol", "day"])}
+    bars_by = {k: DayBars(g) for k, g in bars.groupby(["symbol", "day"])}
 
     spy_shares = START_CASH / float(opens["SPY"].loc[window[0]])
     spy = {d.strftime("%Y-%m-%d"): spy_shares * float(closes["SPY"].loc[d]) for d in window}
