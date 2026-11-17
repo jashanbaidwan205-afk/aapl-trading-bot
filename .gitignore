@@ -5,6 +5,8 @@
 bot_state.json
 trading_bot.log
 set-alpaca-keys.ps1
+dashboard/
+trading_bot.local.log
 
 __pycache__/
 .venv/
