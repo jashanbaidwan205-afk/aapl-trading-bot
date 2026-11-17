@@ -56,5 +56,36 @@ class TjrRuleTests(unittest.TestCase):
         self.assertEqual(tjr.find_setups(b, {"low": [100.0], "high": [103.0]}), [])
 
 
+
+class LooseRuleTests(unittest.TestCase):
+    def setUp(self):
+        self.saved = dict(tjr.P)
+
+    def tearDown(self):
+        tjr.P.clear()
+        tjr.P.update(self.saved)
+
+    def two_bar_sweep_day(self):
+        # 9:30 pierces 100.0 and CLOSES below (99.9); 9:35 closes back above (100.15): a 2-bar sweep
+        sweep = [(100.2, 100.25, 99.8, 99.9), (99.9, 100.2, 99.85, 100.15)]
+        return day(PRE + sweep + MORNING[1:] + RALLY + REST)
+
+    def test_strict_rules_reject_a_two_bar_sweep(self):
+        tjr.P.clear(); tjr.P.update(tjr.STRICT)
+        self.assertEqual(tjr.find_setups(self.two_bar_sweep_day(), {"low": [100.0], "high": [103.0]}), [])
+
+    def test_loose_rules_accept_a_two_bar_sweep(self):
+        tjr.P.clear(); tjr.P.update(tjr.LOOSE)
+        s = tjr.find_setups(self.two_bar_sweep_day(), {"low": [100.0], "high": [103.0]})
+        self.assertEqual(len(s), 1)
+        self.assertEqual((s[0]["side"], s[0]["sweep_hm"]), ("long", "09:30"))
+        self.assertAlmostEqual(s[0]["stop"], 99.8 * (1 - 0.0002))        # beyond the lowest wick of the sweep
+
+    def test_pool_target(self):
+        tjr.P.clear(); tjr.P.update(dict(tjr.LOOSE, TARGET="pool"))
+        s = tjr.find_setups(self.two_bar_sweep_day(), {"low": [100.0], "high": [101.4, 103.0]})
+        self.assertAlmostEqual(s[0]["target"], 101.4)                    # nearest high at least 1R away
+
+
 if __name__ == "__main__":
     unittest.main()

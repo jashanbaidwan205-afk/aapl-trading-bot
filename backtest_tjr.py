@@ -50,12 +50,17 @@ BASE = Path(__file__).resolve().parent
 OUT = BASE / "backtest_tjr_results"
 NY = "America/New_York"
 SYMBOLS = ["QQQ", "SPY"]
-P = {"PIVOT": 2, "MSS_BARS": 12, "FVG_ATR": 0.25, "ATR_N": 14, "STOP_BUFFER": 0.0002, "TARGET_R": 2.0,
-     "KILLZONE_END": "11:00", "ENTRY_UNTIL": "11:30", "FLATTEN": "15:55", "SLIP": 0.0002}
+STRICT = {"BAR_MIN": 5, "PIVOT": 2, "RECLAIM_BARS": 1, "MSS_BARS": 12, "FVG_ATR": 0.25, "ATR_N": 14,
+          "STOP_BUFFER": 0.0002, "TARGET_R": 2.0, "TARGET": "R",
+          "KILLZONE_END": "11:00", "ENTRY_UNTIL": "11:30", "FLATTEN": "15:55", "SLIP": 0.0002}
+# Looser, closer to reading a 1-minute chart by eye: the sweep may reclaim the level within 3 bars,
+# the structure shift may come within 30 minutes, smaller gaps count.
+LOOSE = dict(STRICT, BAR_MIN=1, RECLAIM_BARS=3, MSS_BARS=30, FVG_ATR=0.10)
+P = dict(STRICT)
 
 
 # ---------------------------------------------------------------- data
-def fetch_bars(years: int) -> pd.DataFrame:
+def fetch_bars(years: int, bar_min: int = 5) -> pd.DataFrame:
     from alpaca.data.enums import Adjustment, DataFeed
     from alpaca.data.historical import StockHistoricalDataClient
     from alpaca.data.requests import StockBarsRequest
@@ -65,7 +70,7 @@ def fetch_bars(years: int) -> pd.DataFrame:
     client = StockHistoricalDataClient(os.getenv("ALPACA_API_KEY"), os.getenv("ALPACA_SECRET_KEY"))
     end = datetime.now(timezone.utc) - timedelta(days=1)
     start = end - timedelta(days=int(365 * years) + 20)
-    df = client.get_stock_bars(StockBarsRequest(symbol_or_symbols=SYMBOLS, timeframe=TimeFrame(5, TimeFrameUnit.Minute),
+    df = client.get_stock_bars(StockBarsRequest(symbol_or_symbols=SYMBOLS, timeframe=TimeFrame(bar_min, TimeFrameUnit.Minute),
                                                 start=start, end=end, adjustment=Adjustment.ALL,
                                                 feed=DataFeed.SIP)).df.reset_index()
     ts = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert(NY)
@@ -99,32 +104,39 @@ def find_setups(bars: pd.DataFrame, pools: dict) -> list[dict]:
     a = atr(hi, lo, cl, P["ATR_N"])
     ph, pl = pivots(hi, lo, P["PIVOT"])
     out, used = [], set()
-    for i in range(len(hm)):
+    n = len(hm)
+    for i in range(n):
         if hm[i] < "09:30" or hm[i] >= P["KILLZONE_END"]:
             continue
         for side, levels in (("long", pools["low"]), ("short", pools["high"])):
             for L in levels:
                 if (side, L) in used:
                     continue
-                swept = lo[i] < L < cl[i] if side == "long" else cl[i] < L < hi[i]
-                if not swept:
+                pierced = lo[i] < L if side == "long" else hi[i] > L
+                if not pierced:
                     continue
-                used.add((side, L))
-                # most recent confirmed swing on the other side, known at bar i
+                used.add((side, L))                                   # each level is swept once
+                # reclaim: a close back inside the level within RECLAIM_BARS bars (the piercing bar counts)
+                r = None
+                for j in range(i, min(i + P["RECLAIM_BARS"], n)):
+                    if (side == "long" and cl[j] > L) or (side == "short" and cl[j] < L):
+                        r = j
+                        break
+                if r is None:
+                    continue                                          # it broke the level for real
+                extreme = min(lo[i:r + 1]) if side == "long" else max(hi[i:r + 1])
                 piv = ph if side == "long" else pl
-                known = [j for j in piv if j + P["PIVOT"] <= i]
+                known = [j for j in piv if j + P["PIVOT"] <= r]
                 if not known:
                     continue
                 level_ms = piv[max(known)]
-                extreme = lo[i] if side == "long" else hi[i]
-                for m in range(i + 1, min(i + 1 + P["MSS_BARS"], len(hm))):
+                for m in range(r + 1, min(r + 1 + P["MSS_BARS"], n)):
                     if hm[m] >= P["KILLZONE_END"]:
                         break
                     if (side == "long" and cl[m] < L) or (side == "short" and cl[m] > L):
                         break                                         # lost the level: no setup
                     extreme = min(extreme, lo[m]) if side == "long" else max(extreme, hi[m])
                     if (side == "long" and cl[m] > level_ms) or (side == "short" and cl[m] < level_ms):
-                        # fair value gap in the leg from the sweep to the MSS (most recent first)
                         gap = None
                         for k in range(m, i + 1, -1):
                             if side == "long" and lo[k] - hi[k - 2] >= P["FVG_ATR"] * a[k]:
@@ -139,6 +151,12 @@ def find_setups(bars: pd.DataFrame, pools: dict) -> list[dict]:
                             risk = entry - stop if side == "long" else stop - entry
                             if risk > 0:
                                 target = entry + P["TARGET_R"] * risk if side == "long" else entry - P["TARGET_R"] * risk
+                                if P["TARGET"] == "pool":
+                                    # the opposite liquidity pool, if it is at least 1R away
+                                    far = [x for x in (pools["high"] if side == "long" else pools["low"])
+                                           if (x - entry if side == "long" else entry - x) >= risk]
+                                    if far:
+                                        target = min(far) if side == "long" else max(far)
                                 out.append({"side": side, "level": float(L), "sweep_hm": str(hm[i]), "mss_hm": str(hm[m]),
                                             "mss_i": m, "entry": entry, "stop": float(stop), "target": float(target)})
                         break
@@ -203,10 +221,10 @@ def fill_and_exit(bars: pd.DataFrame, s: dict):
 
 
 # ---------------------------------------------------------------- simulation
-def run(years: int, risk_pct: float, leverage: float, start_cash: float = 100_000.0):
+def run(years: int, risk_pct: float, leverage: float, start_cash: float = 100_000.0, bars=None):
     import yfinance as yf
 
-    bars = fetch_bars(years)
+    bars = bars if bars is not None else fetch_bars(years, P["BAR_MIN"])
     days_all = sorted(bars.day.unique())
     today = pd.Timestamp.now(tz=NY).strftime("%Y-%m-%d")
     days = [d for d in days_all if d < today][-252 * years:]
@@ -289,10 +307,17 @@ def run(years: int, risk_pct: float, leverage: float, start_cash: float = 100_00
         "months_positive": sum(m["realized_pl"] > 0 for m in months), "months": len(months),
         "best_month": max(months, key=lambda m: m["realized_pl"]) if months else None,
         "worst_month": min(months, key=lambda m: m["realized_pl"]) if months else None,
-        "risk_pct": risk_pct, "leverage": leverage, "rules": P,
+        "risk_pct": risk_pct, "leverage": leverage, "rules": dict(P),
         "run_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     return summary, eq_rows, trades, months
+
+
+VARIANTS = {
+    "strict_5m": ("Strict rules, 5-minute bars, 2R target", STRICT),
+    "loose_1m": ("Looser rules, 1-minute bars, 2R target", LOOSE),
+    "loose_1m_pool": ("Looser rules, 1-minute bars, target the opposite liquidity level", dict(LOOSE, TARGET="pool")),
+}
 
 
 def main():
@@ -303,14 +328,23 @@ def main():
     a = ap.parse_args()
     OUT.mkdir(exist_ok=True)
     meta = [{"label": "backtest_tjr.py", "value": Path(__file__).read_text(encoding="utf-8"), "type": "code", "lang": "python"}]
-    results = {}
-    for name, lev in (("lev4", a.leverage), ("lev1", 1.0)):
-        s, eq, tr, mo = run(a.years, a.risk, lev)
-        results[name] = s
-        for fname, rows, m in (("summary", [s], meta), ("equity", eq, []), ("trades", tr, []), ("months", mo, [])):
-            (OUT / f"tjr_{name}_{fname}.json").write_text(json.dumps({"rows": rows, "meta": m}, default=str, separators=(",", ":")))
-        print(f"\n== risk {a.risk}% per trade, positions up to {lev:g}x the account ==")
-        print(json.dumps({k: s[k] for k in s if k not in ("rules", "run_at")}, indent=1, default=str))
+    cache = {}
+    for vname, (label, params) in VARIANTS.items():
+        P.clear()
+        P.update(params)
+        if params["BAR_MIN"] not in cache:
+            cache[params["BAR_MIN"]] = fetch_bars(a.years, params["BAR_MIN"])
+        for lname, lev in (("lev4", a.leverage), ("lev1", 1.0)):
+            s, eq, tr, mo = run(a.years, a.risk, lev, bars=cache[params["BAR_MIN"]])
+            s["variant"], s["label"] = f"{vname}_{lname}", f"{label}, positions up to {lev:g}x the account"
+            for fname, rows, m in (("summary", [s], meta), ("equity", eq, []), ("trades", tr, []), ("months", mo, [])):
+                (OUT / f"tjr_{vname}_{lname}_{fname}.json").write_text(
+                    json.dumps({"rows": rows, "meta": m}, default=str, separators=(",", ":")))
+            print(f"\n== {s['label']} ==")
+            print(json.dumps({k: s[k] for k in ("end_value", "total_return_pct", "max_drawdown_pct", "spy_total_return_pct",
+                                                "trades", "setups_found", "setups_never_filled", "win_rate_pct",
+                                                "avg_win", "avg_loss", "profit_factor", "avg_r", "exits",
+                                                "months_positive", "months")}, default=str))
 
 
 if __name__ == "__main__":
