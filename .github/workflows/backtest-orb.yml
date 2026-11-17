@@ -1,9 +1,14 @@
-name: Opening Range Backtest
+name: Day Trading Backtest
 
 # Runs only when started by hand. Reads historical price data; never places orders.
 on:
   workflow_dispatch:
     inputs:
+      test:
+        description: "Which backtest"
+        type: choice
+        options: [daytrade, orb]
+        default: daytrade
       years:
         description: "Years of history to test"
         default: "1"
@@ -14,7 +19,7 @@ permissions:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -31,25 +36,34 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: backtest_orb_cache
-          key: orb-bars-${{ github.run_id }}
-          restore-keys: orb-bars-
+          key: orb-bars-v2-${{ github.run_id }}
+          restore-keys: orb-bars-v2-
 
       - name: Run backtest
         env:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-        run: python backtest_orb.py --years ${{ inputs.years }}
+        run: |
+          start=$(date +%s)
+          if [ "${{ inputs.test }}" = "orb" ]; then
+            python backtest_orb.py --years ${{ inputs.years }}
+          else
+            python backtest_daytrade.py --years ${{ inputs.years }}
+          fi
+          echo "Backtest took $(( $(date +%s) - start )) seconds"
 
       - name: Save price bars for next time
         if: always()
         uses: actions/cache/save@v4
         with:
           path: backtest_orb_cache
-          key: orb-bars-${{ github.run_id }}
+          key: orb-bars-v2-${{ github.run_id }}
 
       - name: Save results
         uses: actions/upload-artifact@v4
         with:
-          name: orb-results
-          path: backtest_orb_results/
+          name: ${{ inputs.test }}-results
+          path: |
+            backtest_orb_results/
+            backtest_daytrade_results/
           retention-days: 30

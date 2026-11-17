@@ -48,7 +48,8 @@ import config
 
 BASE = Path(__file__).resolve().parent
 OUT = BASE / "backtest_orb_results"
-CACHE_FILE = BASE / "backtest_orb_cache" / "bars_5m.pkl"   # saved between runs
+CACHE_FILE = BASE / "backtest_orb_cache" / "bars_5m_v2.pkl"   # saved between runs (with volume + VWAP)
+BAR_COLS = ["day", "hm", "open", "high", "low", "close", "volume", "vwap"]
 NY = "America/New_York"
 START_CASH = 100_000.0
 
@@ -86,7 +87,7 @@ def daily_data(symbols: list[str], years: int) -> dict[str, pd.DataFrame]:
                 break
             time.sleep(5 * (attempt + 1))
     raw = pd.concat(frames, axis=1)
-    out = {f: raw.xs(f, axis=1, level=1).sort_index() for f in ("Open", "Close", "Volume")}
+    out = {f: raw.xs(f, axis=1, level=1).sort_index() for f in ("Open", "High", "Low", "Close", "Volume")}
     return {f: d.loc[:, ~d.columns.duplicated()] for f, d in out.items()}
 
 
@@ -179,25 +180,35 @@ def minute_bars(symbols: list[str], start, end) -> pd.DataFrame:
         new["symbol"] = new["symbol"].map(lambda s: from_alpaca.get(s, s))
         ts = pd.to_datetime(new["timestamp"], utc=True).dt.tz_convert(NY)
         new["day"], new["hm"] = ts.dt.strftime("%Y-%m-%d"), ts.dt.strftime("%H:%M")
-        new = new[(new.hm >= "09:30") & (new.hm < "16:00")][["symbol", "day", "hm", "open", "high", "low", "close"]]
+        new = new[(new.hm >= "09:30") & (new.hm < "16:00")][["symbol"] + BAR_COLS]
         fetched = {s for day_syms in jobs.values() for s in day_syms} - set(missing)
         for s, g in new.groupby("symbol"):
             old = cache["bars"].get(s)
             g = g.drop(columns="symbol")
             if old is not None and cache["span"][s][0] <= start_day:
+                old = old.astype({"day": str, "hm": str})
                 g = pd.concat([old, g]).drop_duplicates(["day", "hm"], keep="last")
-            cache["bars"][s] = g.sort_values(["day", "hm"]).reset_index(drop=True)
+            g = g.sort_values(["day", "hm"]).reset_index(drop=True)
+            # Categories keep memory and the saved file small (dates/times repeat a lot)
+            cache["bars"][s] = g.astype({"day": "category", "hm": "category", "volume": "float32", "vwap": "float32"})
         for s in fetched:
             first = cache["span"].get(s, (start_day, None))[0]
             cache["span"][s] = (min(first, start_day) if first else start_day, end_day)
         CACHE_FILE.parent.mkdir(exist_ok=True)
         CACHE_FILE.write_bytes(pickle.dumps(cache))
 
-    out = [g.assign(symbol=s) for s, g in cache["bars"].items() if s in set(symbols)]
-    bars = pd.concat(out)
-    bars = bars[(bars.day >= start_day) & (bars.day <= end_day)]
-    print(f"  {len(bars):,} bars ({feed.value} feed)")
-    return bars[["symbol", "day", "hm", "open", "high", "low", "close"]]
+    want, out = set(symbols), {}
+    for s, g in cache["bars"].items():
+        if s in want:
+            d = g["day"].astype(str)
+            out[s] = g[(d >= start_day) & (d <= end_day)]
+    print(f"  {sum(len(g) for g in out.values()):,} bars for {len(out)} stocks ({feed.value} feed)")
+    return out
+
+
+def day_bars(bars: dict[str, pd.DataFrame]) -> dict:
+    """{(symbol, day): DayBars} from minute_bars() output."""
+    return {(s, str(day)): DayBars(g) for s, df in bars.items() for day, g in df.groupby("day", observed=True)}
 
 
 # ---------------------------------------------------------------------------
@@ -210,13 +221,15 @@ def or_end_hm() -> str:
 
 class DayBars:
     """One stock's bars for one day as NumPy arrays (much faster than DataFrame rows)."""
-    __slots__ = ("hm", "open", "high", "low", "close")
+    __slots__ = ("hm", "open", "high", "low", "close", "volume", "vwap")
 
     def __init__(self, df: pd.DataFrame):
         df = df.sort_values("hm")
-        self.hm = df["hm"].to_numpy()
+        self.hm = df["hm"].astype(str).to_numpy()
         self.open, self.high = df["open"].to_numpy(float), df["high"].to_numpy(float)
         self.low, self.close = df["low"].to_numpy(float), df["close"].to_numpy(float)
+        self.volume = df["volume"].to_numpy(float) if "volume" in df else np.zeros(len(df))
+        self.vwap = df["vwap"].to_numpy(float) if "vwap" in df else self.close
 
     def __len__(self):
         return len(self.hm)
@@ -394,7 +407,7 @@ def main() -> None:
     end = pd.Timestamp(days[-1], tz=NY) + pd.Timedelta(hours=23)
     bars = minute_bars(union, start.to_pydatetime(), end.to_pydatetime())
     feed_note = "Alpaca 5-minute bars (split-adjusted); Yahoo Finance daily prices for the stock list and SPY"
-    bars_by = {k: DayBars(g) for k, g in bars.groupby(["symbol", "day"])}
+    bars_by = day_bars(bars)
 
     spy_shares = START_CASH / float(opens["SPY"].loc[window[0]])
     spy = {d.strftime("%Y-%m-%d"): spy_shares * float(closes["SPY"].loc[d]) for d in window}
