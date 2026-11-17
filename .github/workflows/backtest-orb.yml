@@ -51,7 +51,7 @@ jobs:
           test="${{ inputs.test || 'both' }}"; years="${{ inputs.years || '1' }}"
           if [ "$test" = "orb" ] || [ "$test" = "both" ]; then python backtest_orb.py --years "$years"; fi
           if [ "$test" = "daytrade" ] || [ "$test" = "both" ]; then python backtest_daytrade.py --years "$years"; fi
-          if [ "$test" = "plugin" ]; then python backtest_plugin.py --years "$years" --budget 100; fi
+          if [ "$test" = "plugin" ] || [ "$test" = "both" ]; then python backtest_plugin.py --years "$years" --budget 100; fi
           echo "Backtest took $(( $(date +%s) - start )) seconds"
 
       - name: Save price bars for next time
