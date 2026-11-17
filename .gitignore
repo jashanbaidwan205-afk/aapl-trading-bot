@@ -19,3 +19,4 @@ dt_dl/
 sip_bot.log
 sip_plan.json
 backtest_plugin_results/
+backtest_tjr_results/
