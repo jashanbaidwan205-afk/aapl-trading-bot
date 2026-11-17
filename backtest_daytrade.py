@@ -79,7 +79,9 @@ STRATEGIES = {
     "sip": ("Stocks in Play 5-min breakout", 20),
     "vwap": ("VWAP pullback", 10),
     "gap": ("Gap and go", 10),
-    "sip_live": ("Day trader bot (its exact live rules)", 20),
+    "sip_old": ("Day trader bot, first rules (top-ranked orders hold room)", 20),
+    "sip_live": ("Day trader bot, new rules (first breakout gets the room)", 20),
+    "sip_live_slip10": ("Day trader bot, new rules, double slippage (0.10%)", 20),
 }
 LIVE_ENTRY_UNTIL = "15:00"   # sip_bot.py: SIP_ENTRY_UNTIL
 LIVE_FLATTEN_AT = "15:55"    # sip_bot.py: SIP_FLATTEN_AT
@@ -235,6 +237,7 @@ def build_candidates(days, bars_by, daily, symbols):
         rvol[s] = (ser / base).to_dict()
 
     cands = {k: {} for k in STRATEGIES}
+    cands["sip_picks"] = cands["sip_old"]
     for d in days:
         ts = pd.Timestamp(d)
         if ts not in closes.index:
@@ -255,7 +258,7 @@ def build_candidates(days, bars_by, daily, symbols):
         for rank, (s, b, rv, pc, a, av) in enumerate(sip, start=1):
             if b.hm[0] == "09:30" and b.close[0] != b.open[0]:
                 up = b.close[0] > b.open[0]
-                cands["sip_live"].setdefault(d, []).append({
+                cands["sip_old"].setdefault(d, []).append({
                     "rank": rank, "symbol": s, "side": "long" if up else "short",
                     "level": float(b.high[0] if up else b.low[0]), "dist": S["SIP_STOP_ATR"] * float(a)})
             t = sip_trade(b, a)
@@ -393,7 +396,7 @@ def simulate_live(days, picks_by_day, bars_by, spy, withdraw_pct):
     return trades, equity_rows, months, withdrawn
 
 
-def simulate(days, cands_by_day, bars_by, max_trades, spy, withdraw_pct):
+def simulate(days, cands_by_day, bars_by, max_trades, spy, withdraw_pct, flatten_at=None):
     slip = S["SLIPPAGE_PCT"] / 100
     cash, withdrawn, month_pnl = START_CASH, 0.0, 0.0
     trades, equity_rows, months = [], [], []
@@ -414,7 +417,13 @@ def simulate(days, cands_by_day, bars_by, max_trades, spy, withdraw_pct):
             if sum(x["entry"] * x["shares"] for x in open_t) + qty * entry > equity * S["MAX_INVESTED_PCT"] / 100:
                 continue
             b = bars_by[(s, d)]
-            xhm, xpx, why = exit_from(b, t["k"], t["side"], t["stop"], t["target"], t["entry_raw"])
+            if flatten_at:  # the live bot closes at 3:55 PM instead of the 4:00 PM close
+                ex = live_exit(b, t["k"], t["side"], t["stop"], t["entry_raw"])
+                if not ex:
+                    continue
+                xhm, xpx, why = ex
+            else:
+                xhm, xpx, why = exit_from(b, t["k"], t["side"], t["stop"], t["target"], t["entry_raw"])
             pnl = (xpx - entry) * qty if long else (entry - xpx) * qty
             rec = {"day": d, "symbol": s, "side": t["side"], "entry_hm": ehm, "exit_hm": str(xhm), "shares": qty,
                    "entry": round(entry, 2), "stop": round(t["stop"], 2),
@@ -450,7 +459,12 @@ def summarize(name, trades, eq_rows, months, withdrawn, withdraw_pct, max_trades
     settings = {
         "sip": f"top {S['TOP_SIP']} by opening relative volume, stop {S['SIP_STOP_ATR']:g}x ATR, exit at close",
         "vwap": f"stocks in play, pullback to rising/falling VWAP 10:00-14:00, target {S['TARGET_R']:g}R",
-        "sip_live": (f"the live bot rules: top {S['TOP_SIP']} by opening relative volume, entry orders in rank order "
+        "sip_live": (f"the new live bot rules: top {S['TOP_SIP']} by opening relative volume, the first breakout "
+                     f"gets the room within the limit, entries until 15:30, stop {S['SIP_STOP_ATR']:g}x ATR, "
+                     f"closed at {LIVE_FLATTEN_AT}"),
+        "sip_live_slip10": (f"as the new live rules with 0.10% slippage on every fill: top {S['TOP_SIP']} by opening "
+                            f"relative volume, first breakout gets the room, entries until 15:30, closed at {LIVE_FLATTEN_AT}"),
+        "sip_old": (f"the first live bot rules: top {S['TOP_SIP']} by opening relative volume, entry orders in rank order "
                      f"while positions plus resting orders stay within the limit, entries until {LIVE_ENTRY_UNTIL}, "
                      f"stop {S['SIP_STOP_ATR']:g}x ATR, closed at {LIVE_FLATTEN_AT}"),
         "gap": f"gaps of {S['MIN_GAP_PCT']:g}%+ with {S['MIN_RVOL_GAP']:g}x opening volume, top {S['TOP_GAP']}, "
@@ -510,8 +524,18 @@ def main() -> None:
         for wd in (0.0, 70.0):
             order += 1
             variant = name if wd == 0 else f"{name}_withdraw70"
-            if name == "sip_live":
-                trades, eq, months, withdrawn = simulate_live(days, cands[name], bars_by, spy, wd)
+            if name == "sip_old":
+                trades, eq, months, withdrawn = simulate_live(days, cands["sip_old"], bars_by, spy, wd)
+            elif name in ("sip_live", "sip_live_slip10"):
+                # the new live rules = the Stocks in Play breakout, first come first served within the
+                # 50% limit, entries until 3:30 PM, closed at 3:55 PM; optionally with double slippage
+                old_slip = S["SLIPPAGE_PCT"]
+                S["SLIPPAGE_PCT"] = old_slip * (2 if name == "sip_live_slip10" else 1)
+                try:
+                    trades, eq, months, withdrawn = simulate(days, cands["sip"], bars_by, max_trades, spy, wd,
+                                                             flatten_at=LIVE_FLATTEN_AT)
+                finally:
+                    S["SLIPPAGE_PCT"] = old_slip
             else:
                 trades, eq, months, withdrawn = simulate(days, cands[name], bars_by, max_trades, spy, wd)
             s = summarize(name, trades, eq, months, withdrawn, wd, max_trades)
