@@ -79,7 +79,10 @@ STRATEGIES = {
     "sip": ("Stocks in Play 5-min breakout", 20),
     "vwap": ("VWAP pullback", 10),
     "gap": ("Gap and go", 10),
+    "sip_live": ("Day trader bot (its exact live rules)", 20),
 }
+LIVE_ENTRY_UNTIL = "15:00"   # sip_bot.py: SIP_ENTRY_UNTIL
+LIVE_FLATTEN_AT = "15:55"    # sip_bot.py: SIP_FLATTEN_AT
 
 
 # ---------------------------------------------------------------------------
@@ -250,6 +253,11 @@ def build_candidates(days, bars_by, daily, symbols):
         sip = sorted([r for r in rows if r[2] >= S["MIN_RVOL_SIP"] and r[5] >= 1e6 and r[4] >= 0.5],
                      key=lambda r: -r[2])[:S["TOP_SIP"]]
         for rank, (s, b, rv, pc, a, av) in enumerate(sip, start=1):
+            if b.hm[0] == "09:30" and b.close[0] != b.open[0]:
+                up = b.close[0] > b.open[0]
+                cands["sip_live"].setdefault(d, []).append({
+                    "rank": rank, "symbol": s, "side": "long" if up else "short",
+                    "level": float(b.high[0] if up else b.low[0]), "dist": S["SIP_STOP_ATR"] * float(a)})
             t = sip_trade(b, a)
             if t:
                 cands["sip"].setdefault(d, []).append((b.hm[t["k"]], rank, s, t))
@@ -267,6 +275,122 @@ def build_candidates(days, bars_by, daily, symbols):
             if t:
                 cands["gap"].setdefault(d, []).append((b.hm[t["k"]], rank, s, t))
     return cands
+
+
+class _View:
+    """The bars of one day up to (not including) a cut-off index, for exit_from()."""
+
+    def __init__(self, b, n):
+        self.hm, self.open, self.high, self.low, self.close = b.hm[:n], b.open[:n], b.high[:n], b.low[:n], b.close[:n]
+
+    def __len__(self):
+        return len(self.hm)
+
+
+def live_fill(b, side, level, p):
+    """A stop entry order resting from bar p: (bar index, raw fill price), or None if it never fills before LIVE_ENTRY_UNTIL."""
+    for j in range(p, len(b)):
+        if b.hm[j] >= LIVE_ENTRY_UNTIL:
+            return None
+        if side == "long":
+            if b.open[j] >= level:
+                return j, float(b.open[j])        # already through the level: fills at the open
+            if b.high[j] >= level:
+                return j, float(level)
+        else:
+            if b.open[j] <= level:
+                return j, float(b.open[j])
+            if b.low[j] <= level:
+                return j, float(level)
+    return None
+
+
+def live_exit(b, k, side, stop, entry_px):
+    """The stop-loss, or the 3:55 PM market close-out (at the open of the 3:55 bar)."""
+    slip = S["SLIPPAGE_PCT"] / 100
+    cut = next((i for i in range(len(b)) if b.hm[i] >= LIVE_FLATTEN_AT), len(b))
+    if k >= cut:
+        return None
+    hm_, px, why = exit_from(_View(b, cut), k, side, stop, None, entry_px)
+    if why == "close" and cut < len(b):
+        px = b.open[cut] * ((1 - slip) if side == "long" else (1 + slip))
+        hm_ = b.hm[cut]
+    return hm_, px, why
+
+
+def simulate_live(days, picks_by_day, bars_by, spy, withdraw_pct):
+    """Mirror sip_bot.py: entry orders go in rank order while open positions plus resting
+    entries stay within MAX_INVESTED_PCT; room only frees up when a filled trade exits
+    (the bot sees it on its next pass, i.e. from the next 5-minute bar); unfilled entries
+    keep their room until LIVE_ENTRY_UNTIL; everything is closed at LIVE_FLATTEN_AT."""
+    slip = S["SLIPPAGE_PCT"] / 100
+    cash, withdrawn, month_pnl = START_CASH, 0.0, 0.0
+    trades, equity_rows, months = [], [], []
+    for di, d in enumerate(days):
+        equity, day_pnl = cash, 0.0
+        cap = equity * S["MAX_INVESTED_PCT"] / 100
+        picks = sorted(picks_by_day.get(d, []), key=lambda p: p["rank"])
+        used, nxt, now, placed = 0.0, 0, "09:35", 0
+        releases = []   # (time the room frees up, notional)
+        while True:
+            for r in [r for r in releases if r[0] <= now]:
+                used -= r[1]
+                releases.remove(r)
+            while nxt < len(picks) and now < LIVE_ENTRY_UNTIL:
+                p = picks[nxt]
+                b = bars_by.get((p["symbol"], d))
+                if b is None or p["dist"] <= 0:
+                    nxt += 1
+                    continue
+                qty = math.floor(min(equity * S["RISK_PCT"] / 100 / p["dist"],
+                                     equity * S["MAX_POS_PCT"] / 100 / p["level"]))
+                notional = qty * p["level"]
+                if qty < 1:
+                    nxt += 1
+                    continue
+                if used + notional > cap:
+                    break
+                used += notional
+                nxt += 1
+                placed += 1
+                start = next((i for i in range(len(b)) if b.hm[i] >= now), None)
+                f = live_fill(b, p["side"], p["level"], start) if start is not None else None
+                if not f:
+                    continue  # never filled: keeps its room until the entry cut-off
+                k, raw = f
+                long = p["side"] == "long"
+                entry = raw * ((1 + slip) if long else (1 - slip))
+                stop = raw - p["dist"] if long else raw + p["dist"]
+                ex = live_exit(b, k, p["side"], stop, raw)
+                if not ex:
+                    continue
+                xhm, xpx, why = ex
+                pnl = (xpx - entry) * qty if long else (entry - xpx) * qty
+                trades.append({"day": d, "symbol": p["symbol"], "side": p["side"], "entry_hm": str(b.hm[k]),
+                               "exit_hm": str(xhm), "shares": qty, "entry": round(entry, 2), "stop": round(stop, 2),
+                               "target": None, "exit": round(float(xpx), 2), "exit_reason": why,
+                               "pnl": round(float(pnl), 2), "r_multiple": round(float(pnl / (p["dist"] * qty)), 2),
+                               "rank": p["rank"]})
+                day_pnl += pnl
+                xi = list(b.hm).index(xhm)   # the bot sees the exit on its next pass
+                releases.append((str(b.hm[xi + 1]) if xi + 1 < len(b) else "16:00", notional))
+            future = sorted(r[0] for r in releases if r[0] > now)
+            if nxt >= len(picks) or not future or future[0] >= LIVE_ENTRY_UNTIL:
+                break
+            now = future[0]
+        cash += day_pnl
+        month_pnl += day_pnl
+        if di == len(days) - 1 or days[di + 1][:7] != d[:7]:
+            take = max(0.0, month_pnl) * withdraw_pct / 100
+            cash -= take
+            withdrawn += take
+            months.append({"month": d[:7], "realized_pl": round(month_pnl, 2), "withdrawn": round(take, 2),
+                           "withdrawn_total": round(withdrawn, 2), "account_value": round(cash, 2)})
+            month_pnl = 0.0
+        equity_rows.append({"date": d, "equity": round(cash, 2), "trades": sum(t["day"] == d for t in trades),
+                            "orders_placed": placed, "withdrawn_total": round(withdrawn, 2),
+                            "spy_equity": round(spy[d], 2)})
+    return trades, equity_rows, months, withdrawn
 
 
 def simulate(days, cands_by_day, bars_by, max_trades, spy, withdraw_pct):
@@ -326,6 +450,9 @@ def summarize(name, trades, eq_rows, months, withdrawn, withdraw_pct, max_trades
     settings = {
         "sip": f"top {S['TOP_SIP']} by opening relative volume, stop {S['SIP_STOP_ATR']:g}x ATR, exit at close",
         "vwap": f"stocks in play, pullback to rising/falling VWAP 10:00-14:00, target {S['TARGET_R']:g}R",
+        "sip_live": (f"the live bot rules: top {S['TOP_SIP']} by opening relative volume, entry orders in rank order "
+                     f"while positions plus resting orders stay within the limit, entries until {LIVE_ENTRY_UNTIL}, "
+                     f"stop {S['SIP_STOP_ATR']:g}x ATR, closed at {LIVE_FLATTEN_AT}"),
         "gap": f"gaps of {S['MIN_GAP_PCT']:g}%+ with {S['MIN_RVOL_GAP']:g}x opening volume, top {S['TOP_GAP']}, "
                f"break of first 5-min candle before 10:30, target {S['TARGET_R']:g}R",
     }[name] + (f"; risk {S['RISK_PCT']:g}% per trade, max {S['MAX_POS_PCT']:g}% per position, "
@@ -383,7 +510,10 @@ def main() -> None:
         for wd in (0.0, 70.0):
             order += 1
             variant = name if wd == 0 else f"{name}_withdraw70"
-            trades, eq, months, withdrawn = simulate(days, cands[name], bars_by, max_trades, spy, wd)
+            if name == "sip_live":
+                trades, eq, months, withdrawn = simulate_live(days, cands[name], bars_by, spy, wd)
+            else:
+                trades, eq, months, withdrawn = simulate(days, cands[name], bars_by, max_trades, spy, wd)
             s = summarize(name, trades, eq, months, withdrawn, wd, max_trades)
             s.update(variant=variant, strategy=name, order=order,
                      label=label + (", 70% of profits withdrawn" if wd else ""))
