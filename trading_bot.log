@@ -43,3 +43,5 @@ alpaca.common.exceptions.APIError: <html>
 </body>
 </html>
 
+2026-11-17 04:35:15  INFO     ---- Run start: AAPL  SMA20/SMA50  qty=1  dry_run=False ----
+2026-11-17 04:35:15  INFO     Market is closed today (weekend or holiday). Nothing to do.
