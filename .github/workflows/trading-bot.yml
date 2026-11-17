@@ -2,11 +2,16 @@ name: AAPL MA Crossover Bot
 
 on:
   schedule:
-    # GitHub cron runs in UTC. 9:30 AM New York is 13:30 UTC during daylight time (EDT)
-    # and 14:30 UTC during standard time (EST). Both are scheduled; the "Check time" step
-    # below keeps only the one that matches today's New York clock.
-    - cron: "30 13 * * 1-5"
-    - cron: "30 14 * * 1-5"
+    # GitHub cron runs in UTC and can delay or drop scheduled runs when it is busy, so
+    # there are several chances each morning. 9:31 AM New York is 13:31 UTC in daylight
+    # time (EDT) and 14:31 UTC in standard time (EST). The "Check time" step runs the bot
+    # once per day: the first trigger between 9:28 and 11:30 AM New York wins, the rest skip.
+    - cron: "31 13 * * 1-5"
+    - cron: "43 13 * * 1-5"
+    - cron: "57 13 * * 1-5"
+    - cron: "31 14 * * 1-5"
+    - cron: "43 14 * * 1-5"
+    - cron: "57 14 * * 1-5"
   workflow_dispatch:   # lets you run it by hand from the Actions tab
     inputs:
       dry_run:
@@ -26,22 +31,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v4
+
       - name: Check time
         id: gate
         run: |
           if [ "${{ github.event_name }}" != "schedule" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          if [ "$(TZ=America/New_York date +%Z)" = "EDT" ]; then wanted="30 13 * * 1-5"; else wanted="30 14 * * 1-5"; fi
-          if [ "${{ github.event.schedule }}" = "$wanted" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
+          today=$(TZ=America/New_York date +%F); now=$(TZ=America/New_York date +%H%M)
+          last=$(cat last_run.txt 2>/dev/null || echo none)
+          if [ "$now" -lt 0928 ] || [ "$now" -gt 1130 ]; then
+            echo "Outside the 9:28-11:30 AM New York window ($now); skipping."; echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [ "$last" = "$today" ]; then
+            echo "Already ran today; skipping."; echo "run=false" >> "$GITHUB_OUTPUT"
           else
-            echo "This trigger is not 9:30 AM New York time today; skipping."
-            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "run=true" >> "$GITHUB_OUTPUT"
           fi
-
-      - uses: actions/checkout@v4
-        if: steps.gate.outputs.run == 'true'
 
       - uses: actions/setup-python@v5
         if: steps.gate.outputs.run == 'true'
@@ -63,6 +69,8 @@ jobs:
             python trading_bot.py --dry-run
           else
             python trading_bot.py
+            # remember that today's real run happened, so later triggers skip
+            TZ=America/New_York date +%F > last_run.txt
           fi
 
       - name: Save log and state to the repo
@@ -70,9 +78,9 @@ jobs:
         run: |
           git config user.name "trading-bot"
           git config user.email "trading-bot@users.noreply.github.com"
-          for f in trading_bot.log bot_state.json scan_results.json; do
+          for f in trading_bot.log bot_state.json scan_results.json last_run.txt; do
             if [ -f "$f" ]; then git add -f "$f"; fi
           done
           if git diff --cached --quiet; then echo "Nothing to save"; exit 0; fi
           git commit -m "Bot run $(TZ=America/New_York date '+%Y-%m-%d %H:%M %Z')"
-          git push
+          for i in 1 2 3; do git pull --rebase -q && git push && break; sleep 5; done

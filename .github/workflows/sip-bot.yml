@@ -5,9 +5,16 @@ name: Day Trader (Stocks in Play)
 #   close - then until SIP_FLATTEN_AT: keep stops in place, close everything, save the log
 on:
   schedule:
-    # 9:20 AM New York is 13:20 UTC in daylight time (EDT), 14:20 UTC in standard time (EST).
-    - cron: "20 13 * * 1-5"
-    - cron: "20 14 * * 1-5"
+    # GitHub can delay or drop scheduled runs, so there are several chances each morning
+    # (UTC times cover both daylight and standard time). The "Check time" step only runs
+    # between 9:10 AM and noon New York; a run already in progress makes later ones wait,
+    # and by the time they start it is past noon, so they skip.
+    - cron: "11 13 * * 1-5"
+    - cron: "23 13 * * 1-5"
+    - cron: "37 13 * * 1-5"
+    - cron: "11 14 * * 1-5"
+    - cron: "23 14 * * 1-5"
+    - cron: "37 14 * * 1-5"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -46,9 +53,9 @@ jobs:
           fi
           echo "dry=false" >> "$GITHUB_OUTPUT"
           echo "full=true" >> "$GITHUB_OUTPUT"
-          if [ "$(TZ=America/New_York date +%Z)" = "EDT" ]; then wanted="20 13 * * 1-5"; else wanted="20 14 * * 1-5"; fi
-          if [ "${{ github.event.schedule }}" = "$wanted" ]; then echo "run=true" >> "$GITHUB_OUTPUT"
-          else echo "Not 9:20 AM New York time for this trigger; skipping."; echo "run=false" >> "$GITHUB_OUTPUT"; fi
+          now=$(TZ=America/New_York date +%H%M)
+          if [ "$now" -ge 0910 ] && [ "$now" -le 1200 ]; then echo "run=true" >> "$GITHUB_OUTPUT"
+          else echo "Outside 9:10 AM-noon New York ($now); skipping."; echo "run=false" >> "$GITHUB_OUTPUT"; fi
 
       - uses: actions/checkout@v4
         if: steps.gate.outputs.run == 'true'
