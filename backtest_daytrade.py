@@ -496,7 +496,11 @@ def summarize(name, trades, eq_rows, months, withdrawn, withdraw_pct, max_trades
 def main() -> None:
     ap = argparse.ArgumentParser(description="Backtest professional day-trading methods")
     ap.add_argument("--years", type=int, default=1)
+    ap.add_argument("--cash", type=float, default=None, help="starting amount in dollars (default $%g)" % START_CASH)
     a = ap.parse_args()
+    if a.cash:
+        global START_CASH
+        START_CASH = a.cash
 
     symbols = orb.sp500_symbols()
     print(f"S&P 500 list: {len(symbols)} stocks")
