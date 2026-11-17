@@ -18,3 +18,4 @@ backtest_daytrade_results/
 dt_dl/
 sip_bot.log
 sip_plan.json
+backtest_plugin_results/
