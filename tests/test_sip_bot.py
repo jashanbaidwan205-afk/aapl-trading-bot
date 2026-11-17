@@ -53,7 +53,7 @@ class FakeBroker:
                 o["status"] = "canceled"
 
     def fill(self, cid, price):
-        o = next(o for o in self.orders if o["cid"] == cid)
+        o = next(o for o in self.orders if o["cid"].startswith(cid))
         o.update(status="filled", filled_qty=o["qty"], filled_avg_price=price)
         q = o["qty"] if o["side"] == "buy" else -o["qty"]
         self.pos[o["symbol"]] = {"qty": float(q), "market_value": q * price, "avg_entry_price": price}
@@ -106,6 +106,7 @@ class EntryTests(unittest.TestCase):
         self.run_once(q)
         got = {o["symbol"]: o for o in self.entries()}
         self.assertEqual(set(got), {"CCC", "EEE"})
+        self.assertEqual(got["CCC"]["cid"], PRE + "e-CCC-a20000")   # aimed-for price in cents
         self.assertEqual((got["CCC"]["type"], got["CCC"]["side"]), ("market", "buy"))
         self.assertEqual(got["EEE"]["side"], "sell")
         # a breakout is acted on once

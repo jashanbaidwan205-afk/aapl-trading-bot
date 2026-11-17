@@ -92,6 +92,11 @@ def prefix(day: str) -> str:
     return f"sip-{day.replace('-', '')}-"
 
 
+def entry_cid(day: str, pick: dict) -> str:
+    """Entry order id; it carries the aimed-for price in cents so slippage can be measured later."""
+    return f"{prefix(day)}e-{pick['symbol']}-a{int(round(pick['level'] * 100))}"
+
+
 # ---------------------------------------------------------------------------
 # Broker wrapper (thin, so tests can swap in a fake)
 # ---------------------------------------------------------------------------
@@ -333,7 +338,7 @@ def manage(broker, picks: list[dict], day: str, t: datetime, since: datetime, al
     invested = sum(abs(p["market_value"]) for s, p in positions.items() if s in sip_syms)
     # market entries sent but not filled yet still count against the limit
     pending = sum(p.get("notional", 0) for p in picks if p.get("state") == "entered"
-                  and not any(o["cid"] == pre + "e-" + p["symbol"] and o["filled_qty"] > 0 for o in orders))
+                  and not any(o["cid"] == entry_cid(day, p) and o["filled_qty"] > 0 for o in orders))
     cap = equity * config.SIP_MAX_INVESTED_PCT / 100
     for p in todo:
         q = quotes.get(p["symbol"])
@@ -365,7 +370,7 @@ def manage(broker, picks: list[dict], day: str, t: datetime, since: datetime, al
                 plan["events"].append({"time": hm(t), "symbol": p["symbol"], "event": "skipped: not shortable"})
                 continue
         side = "buy" if long else "sell"
-        broker.market_order(p["symbol"], qty, side, pre + "e-" + p["symbol"])
+        broker.market_order(p["symbol"], qty, side, entry_cid(day, p))
         p.update(state="entered", detect_price=px, notional=notional, detect_time=hm(t))
         pending += notional
         plan["events"].append({"time": hm(t), "symbol": p["symbol"], "event": f"entry order {side} market",
