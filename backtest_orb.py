@@ -98,26 +98,55 @@ def minute_bars(symbols: list[str], start, end) -> pd.DataFrame:
     if not key or not secret:
         raise SystemExit("ALPACA_API_KEY / ALPACA_SECRET_KEY are needed for minute data")
     client = StockHistoricalDataClient(key, secret)
-    parts, feed = [], DataFeed.SIP
-    for i in range(0, len(symbols), 25):
-        chunk = symbols[i:i + 25]
+    feed = DataFeed.SIP
+    to_alpaca = {s: s.replace("-", ".") for s in symbols}  # Yahoo BRK-B -> Alpaca BRK.B
+    from_alpaca = {v: k for k, v in to_alpaca.items()}
+
+    def fetch(chunk):
+        nonlocal feed
         for attempt in range(3):
             try:
-                req = StockBarsRequest(symbol_or_symbols=chunk, timeframe=TimeFrame(5, TimeFrameUnit.Minute),
+                req = StockBarsRequest(symbol_or_symbols=[to_alpaca[s] for s in chunk],
+                                       timeframe=TimeFrame(5, TimeFrameUnit.Minute),
                                        start=start, end=end, adjustment=Adjustment.SPLIT, feed=feed)
-                df = client.get_stock_bars(req).df
-                parts.append(df)
-                break
+                return client.get_stock_bars(req).df
             except Exception as exc:  # noqa: BLE001
-                if feed == DataFeed.SIP and "subscription" in str(exc).lower():
+                msg = str(exc).lower()
+                if feed == DataFeed.SIP and "subscription" in msg:
                     print("  SIP data not allowed on this plan; using IEX data instead")
                     feed = DataFeed.IEX
                     continue
+                if "invalid symbol" in msg:
+                    raise ValueError(msg) from exc
                 print(f"  minute bars attempt {attempt + 1} failed: {exc}")
                 time.sleep(5 * (attempt + 1))
+        return None
+
+    parts, missing = [], []
+    for i in range(0, len(symbols), 25):
+        chunk = symbols[i:i + 25]
+        try:
+            df = fetch(chunk)
+            if df is not None:
+                parts.append(df)
+            else:
+                missing += chunk
+        except ValueError:
+            for s in chunk:  # one bad ticker: fetch the rest one by one
+                try:
+                    df = fetch([s])
+                    if df is not None:
+                        parts.append(df)
+                    else:
+                        missing.append(s)
+                except ValueError:
+                    missing.append(s)
         print(f"  minute bars {min(i + 25, len(symbols))}/{len(symbols)}")
+    if missing:
+        print(f"  no minute data for {len(missing)} stock(s): {', '.join(missing)}")
     bars = pd.concat(parts)
     bars = bars.reset_index()
+    bars["symbol"] = bars["symbol"].map(lambda s: from_alpaca.get(s, s))
     bars["ts"] = pd.to_datetime(bars["timestamp"], utc=True).dt.tz_convert(NY)
     t = bars["ts"].dt.strftime("%H:%M")
     bars = bars[(t >= "09:30") & (t < "16:00")]
