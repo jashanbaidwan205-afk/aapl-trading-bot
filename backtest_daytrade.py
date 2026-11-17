@@ -90,6 +90,7 @@ STRATEGIES = {
     "sip_live_rvol2": ("Day trader, opening volume at least 2x normal", 20),
     "sip_live_be1r": ("Day trader, stop moved to breakeven at +1R", 20),
     "sip_live_slip03": ("Day trader, cheaper fills (0.03% slippage)", 20),
+    "sip_live_combo": ("Day trader, 20% per stock + 2x volume + breakeven stop", 20),
 }
 # Changes from the live rules for each day trader version (all use the live 50% limit, 3:30 entry cut-off, 3:55 close)
 LIVE_TWEAKS = {
@@ -101,6 +102,7 @@ LIVE_TWEAKS = {
     "sip_live_rvol2": {"MIN_RVOL": 2.0},
     "sip_live_be1r": {"BE_R": 1.0},
     "sip_live_slip03": {"SLIPPAGE_PCT": 0.03},
+    "sip_live_combo": {"RISK_PCT": 1.0, "MAX_POS_PCT": 20.0, "MIN_RVOL": 2.0, "BE_R": 1.0},
 }
 LIVE_ENTRY_UNTIL = "15:00"   # sip_bot.py: SIP_ENTRY_UNTIL
 LIVE_FLATTEN_AT = "15:55"    # sip_bot.py: SIP_FLATTEN_AT
