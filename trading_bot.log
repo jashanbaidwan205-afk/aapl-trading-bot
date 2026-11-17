@@ -53,3 +53,9 @@ alpaca.common.exceptions.APIError: <html>
 2026-11-17 00:04:35 ET  INFO     BUY signal: AAL  close=13.24  SMA20=12.98  SMA50=12.94
 2026-11-17 00:04:36 ET  INFO     [DRY RUN] Would buy 151 AAL (~$1999). No order sent.
 2026-11-17 00:04:36 ET  INFO     Saved scan of 42 stocks to scan_results.json
+2026-11-17 00:09:45 ET  INFO     ---- Run start: most-active scan  SMA20/SMA50  size=2.0%  max=10  dry_run=True ----
+2026-11-17 00:09:45 ET  INFO     Most active today: 50 stocks
+2026-11-17 00:09:48 ET  INFO     Scanned 42 stocks: 1 buy signal(s), 0 sell signal(s)
+2026-11-17 00:09:48 ET  INFO     BUY signal: AAL  close=13.24  SMA20=12.98  SMA50=12.94
+2026-11-17 00:09:48 ET  INFO     [DRY RUN] Would buy 151 AAL (~$1999). No order sent.
+2026-11-17 00:09:48 ET  INFO     Saved scan of 42 stocks to scan_results.json
