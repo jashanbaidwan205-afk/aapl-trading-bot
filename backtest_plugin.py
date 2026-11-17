@@ -82,9 +82,11 @@ def exit_bracket(b, k, stop, target, entry_px):
     return str(hm_), float(px), why
 
 
-def run(years: int, budget: float):
+def run(years: int, budget: float, max_trades: int = 3):
     cfg = dict(budget_mod.DEFAULTS)
     cfg["budget"] = budget
+    cfg["max_trades_per_day"] = max_trades
+    cfg["max_orders_per_day"] = max(cfg["max_orders_per_day"], 3 * max_trades)
     symbols = orb.sp500_symbols()
     daily = orb.daily_data(symbols + ["SPY"], years)
     closes, opens = daily["Close"], daily["Open"]
@@ -133,7 +135,7 @@ def run(years: int, budget: float):
                 skip("outside the 9:45-3:30 entry window")
                 continue
             if entries >= cfg["max_trades_per_day"]:
-                skip("already 3 trades that day")
+                skip("already %d trades that day" % cfg["max_trades_per_day"])
                 continue
             # positions that closed before this one triggers give their cash back
             for p in [p for p in open_pos if p["exit_close_at"] <= at]:
@@ -220,8 +222,8 @@ def run(years: int, budget: float):
         "skipped": skipped, "months_positive": sum(m["realized_pl"] > 0 for m in months), "months": len(months),
         "settings": "day-trader-skill defaults with budget $%g: 15-min opening range, close above the high, "
                     "or-mid stop, 2R target, $50 max loss/trade, 75%% position cap, 10%% cash buffer, whole shares, "
-                    "3 trades/day, $150 daily loss, entries 9:45-3:30, flat by 3:55; S&P 500 stocks >= $5; "
-                    "fills at the next bar's open +0.05%%" % budget,
+                    "%d trades/day, $150 daily loss, entries 9:45-3:30, flat by 3:55; S&P 500 stocks >= $5; "
+                    "fills at the next bar's open +0.05%%" % (budget, cfg["max_trades_per_day"]),
         "run_at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     OUT.mkdir(exist_ok=True)
@@ -236,8 +238,9 @@ def main():
     ap = argparse.ArgumentParser(description="Backtest the day-trader-skill plugin with a small account")
     ap.add_argument("--years", type=int, default=1)
     ap.add_argument("--budget", type=float, default=100.0)
+    ap.add_argument("--max-trades", type=int, default=3, help="trades allowed per day (the skills default to 3)")
     a = ap.parse_args()
-    print(bd.to_json(run(a.years, a.budget), indent=1))
+    print(bd.to_json(run(a.years, a.budget, a.max_trades), indent=1))
 
 
 if __name__ == "__main__":

@@ -18,6 +18,9 @@ on:
       budget:
         description: "Starting amount in dollars for the plugin test"
         default: "100"
+      max_trades:
+        description: "Trades allowed per day in the plugin test"
+        default: "3"
 
 permissions:
   contents: read
@@ -51,10 +54,10 @@ jobs:
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
         run: |
           start=$(date +%s)
-          test="${{ inputs.test || 'both' }}"; years="${{ inputs.years || '1' }}"; budget="${{ inputs.budget || '100' }}"
+          test="${{ inputs.test || 'both' }}"; years="${{ inputs.years || '1' }}"; budget="${{ inputs.budget || '100' }}"; max_trades="${{ inputs.max_trades || '3' }}"
           if [ "$test" = "orb" ] || [ "$test" = "both" ]; then python backtest_orb.py --years "$years"; fi
           if [ "$test" = "daytrade" ] || [ "$test" = "both" ]; then python backtest_daytrade.py --years "$years"; fi
-          if [ "$test" = "plugin" ] || [ "$test" = "both" ]; then python backtest_plugin.py --years "$years" --budget "$budget"; fi
+          if [ "$test" = "plugin" ] || [ "$test" = "both" ]; then python backtest_plugin.py --years "$years" --budget "$budget" --max-trades "$max_trades"; fi
           if [ "$test" = "tjr" ] || [ "$test" = "both" ]; then python backtest_tjr.py --years "$years"; fi
           echo "Backtest took $(( $(date +%s) - start )) seconds"
 
