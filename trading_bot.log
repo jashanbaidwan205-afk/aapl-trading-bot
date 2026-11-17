@@ -1,0 +1,45 @@
+2026-11-17 04:33:33  INFO     ---- Run start: AAPL  SMA20/SMA50  qty=1  dry_run=False ----
+2026-11-17 04:33:33  ERROR    Run failed: <html>
+<head><title>401 Authorization Required</title></head>
+<body>
+<center><h1>401 Authorization Required</h1></center>
+<hr><center>nginx</center>
+</body>
+</html>
+Traceback (most recent call last):
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 201, in _one_request
+    response.raise_for_status()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/requests/models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://paper-api.alpaca.markets/v2/clock
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/trading_bot.py", line 240, in main
+    run(dry_run=args.dry_run or config.DRY_RUN)
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/trading_bot.py", line 185, in run
+    if not market_trades_today(client):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/trading_bot.py", line 144, in market_trades_today
+    clock = client.get_clock()
+            ^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/trading/client.py", line 431, in get_clock
+    response = self.get("/clock")
+               ^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 228, in get
+    return self._request("GET", path, data, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 210, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: <html>
+<head><title>401 Authorization Required</title></head>
+<body>
+<center><h1>401 Authorization Required</h1></center>
+<hr><center>nginx</center>
+</body>
+</html>
+
