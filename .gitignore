@@ -12,3 +12,4 @@ trading_bot.local.log
 
 __pycache__/
 .venv/
+backtest_orb_results/
