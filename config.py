@@ -40,3 +40,27 @@ ALLOW_SHORT = False
 LOG_FILE = "trading_bot.log"
 STATE_FILE = "bot_state.json"       # remembers the last crossover acted on per stock
 SCAN_FILE = "scan_results.json"     # what the latest run saw for every stock it scanned
+
+# =============================================================================
+# Stocks in Play day trader (sip_bot.py) - a second bot in the same paper account
+# =============================================================================
+# Each market day at 9:35 it ranks S&P 500 stocks by opening relative volume
+# (first 5-minute volume vs its 14-day average), keeps the top SIP_TOP, and trades
+# a break of the first 5-minute candle in that candle's direction, with a stop
+# SIP_STOP_ATR x the 14-day ATR away. Everything is closed by SIP_FLATTEN_AT.
+# It never trades a stock the crossover bot holds.
+SIP_ENABLED = True            # False = the scheduled day trader does nothing
+SIP_TOP = 20                  # Stocks in play to consider each day
+SIP_MIN_RVOL = 1.0            # Opening volume at least this many times normal
+SIP_MIN_AVG_VOLUME = 1_000_000  # 14-day average daily volume (shares)
+SIP_MIN_ATR = 0.50            # 14-day average daily range ($)
+SIP_STOP_ATR = 0.10           # Stop distance as a fraction of the 14-day ATR
+SIP_RISK_PCT = 0.5            # Max loss at the stop, % of the account, per trade
+SIP_MAX_POS_PCT = 10.0        # Largest single position, % of the account
+SIP_MAX_INVESTED_PCT = 50.0   # All day-trade positions + pending entries, % of the account
+SIP_ALLOW_SHORT = True        # Trade down-candle breakdowns as short sales
+SIP_ENTRY_UNTIL = "15:00"     # No new entries after this time (New York)
+SIP_FLATTEN_AT = "15:55"      # Close every day-trade position at this time
+SIP_DRY_RUN = False           # True = log the plan, place no orders
+SIP_LOG_FILE = "sip_bot.log"
+SIP_PLAN_FILE = "sip_plan.json"   # today's picks and orders, for the dashboard
