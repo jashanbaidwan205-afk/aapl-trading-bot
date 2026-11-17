@@ -1,13 +1,16 @@
 name: Day Trading Backtest
 
-# Runs only when started by hand. Reads historical price data; never places orders.
+# Reads historical price data; never places orders.
+# Every Saturday it re-runs both backtests with the newest week of data.
 on:
+  schedule:
+    - cron: "17 12 * * 6"   # Saturday ~8 AM New York
   workflow_dispatch:
     inputs:
       test:
         description: "Which backtest"
         type: choice
-        options: [daytrade, orb]
+        options: [daytrade, orb, both]
         default: daytrade
       years:
         description: "Years of history to test"
@@ -45,11 +48,9 @@ jobs:
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
         run: |
           start=$(date +%s)
-          if [ "${{ inputs.test }}" = "orb" ]; then
-            python backtest_orb.py --years ${{ inputs.years }}
-          else
-            python backtest_daytrade.py --years ${{ inputs.years }}
-          fi
+          test="${{ inputs.test || 'both' }}"; years="${{ inputs.years || '1' }}"
+          if [ "$test" = "orb" ] || [ "$test" = "both" ]; then python backtest_orb.py --years "$years"; fi
+          if [ "$test" = "daytrade" ] || [ "$test" = "both" ]; then python backtest_daytrade.py --years "$years"; fi
           echo "Backtest took $(( $(date +%s) - start )) seconds"
 
       - name: Save price bars for next time
@@ -62,7 +63,7 @@ jobs:
       - name: Save results
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.test }}-results
+          name: ${{ inputs.test || 'both' }}-results
           path: |
             backtest_orb_results/
             backtest_daytrade_results/
