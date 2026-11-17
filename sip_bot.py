@@ -14,11 +14,13 @@ Each market day:
      SIP_TOP. Up first candle -> buy-stop at its high; down candle -> sell-stop
      (short) at its low; flat candle -> skip.
   3. Size: risk SIP_RISK_PCT of the account at a stop SIP_STOP_ATR x ATR away,
-     at most SIP_MAX_POS_PCT per position. Entry orders are placed in rank order
-     while open positions + pending entries stay within SIP_MAX_INVESTED_PCT.
-  4. Every ~20 seconds: when an entry fills, place its protective stop at
-     fill -/+ SIP_STOP_ATR x ATR. When an entry is cancelled/filled, room opens
-     for the next candidate. At SIP_ENTRY_UNTIL unfilled entries are cancelled.
+     at most SIP_MAX_POS_PCT per position.
+  4. Every ~3 seconds until SIP_ENTRY_UNTIL: the first pick whose price breaks its
+     level gets a market order if positions stay within SIP_MAX_INVESTED_PCT;
+     a pick that breaks out while the limit is full is skipped for the day
+     (exactly as backtested). Nothing rests at the broker, so simultaneous fills
+     cannot overshoot the limit. When an entry fills, its protective stop goes in
+     at fill -/+ SIP_STOP_ATR x ATR, and the aimed-for vs actual fill price is logged.
   5. At SIP_FLATTEN_AT (or 5 minutes before an early close): cancel every
      day-trade order and close every day-trade position.
 
@@ -27,7 +29,7 @@ touches its own orders and positions. State lives at the broker, so the run can 
 split across two GitHub jobs (each job is limited to 6 hours).
 
 Usage:
-  python sip_bot.py --phase day     # 9:20 -> SIP_ENTRY_UNTIL+: pick, enter, protect
+  python sip_bot.py --phase day     # 9:20 -> SIP_DAY_JOB_UNTIL: pick, enter, protect
   python sip_bot.py --phase close   # manage stops, flatten at SIP_FLATTEN_AT
   python sip_bot.py --phase plan    # print today's picks (or the last session's) and exit
   add --dry-run to log without placing orders.
@@ -54,7 +56,8 @@ import config
 
 NY = ZoneInfo("America/New_York")
 BASE = Path(__file__).resolve().parent
-POLL_SECONDS = 20
+POLL_SECONDS = 20        # while only managing stops
+FAST_POLL_SECONDS = 3    # while watching for breakouts
 
 
 # ---------------------------------------------------------------------------
@@ -281,8 +284,9 @@ def size(equity: float, price: float, stop_dist: float) -> int:
 OPEN_STATUSES = {"new", "accepted", "pending_new", "partially_filled", "held", "accepted_for_bidding", "pending_replace"}
 
 
-def manage(broker, picks: list[dict], day: str, t: datetime, since: datetime, allow_entries: bool, plan: dict):
-    """Place protective stops for filled entries, then place entries for the next picks while there is room."""
+def manage(broker, picks: list[dict], day: str, t: datetime, since: datetime, allow_entries: bool, plan: dict,
+           quotes: dict | None = None):
+    """Place protective stops for filled entries, then enter picks that just broke out while there is room."""
     pre = prefix(day)
     orders = [o for o in broker.orders_today(since) if o["cid"].startswith(pre)]
     by_cid = {o["cid"]: o for o in orders}
@@ -309,46 +313,95 @@ def manage(broker, picks: list[dict], day: str, t: datetime, since: datetime, al
         else:
             stop_px, side = fill + pick["stop_dist"], "buy"
         broker.stop_order(sym, qty, side, stop_px, stop_cid)
+        aimed = pick["level"]
+        slip = (fill - aimed) / aimed * 100 if pick["side"] == "long" else (aimed - fill) / aimed * 100
         plan["events"].append({"time": hm(t), "symbol": sym, "event": "entry filled", "price": fill, "qty": qty,
-                               "stop": round(stop_px, 2)})
+                               "stop": round(stop_px, 2), "aimed": aimed, "slippage_pct": round(slip, 4)})
         log.info("Entry filled: %s %s x%d @ %.2f -> stop %.2f", pick["side"], sym, qty, fill, stop_px)
 
     if not allow_entries:
         return
 
-    # 2) room for new entries: open day-trade positions + pending entry notional
+    # 2) entries: the first pick to break its level gets the room (like the backtest).
+    #    Nothing rests at the broker, so several fills can never overshoot the limit.
+    todo = [p for p in picks if not p.get("state")]
+    if not todo:
+        return
+    if quotes is None:
+        quotes = get_quotes([p["symbol"] for p in todo], day)
     sip_syms = {o["symbol"] for o in orders if "-e-" in o["cid"]}
     invested = sum(abs(p["market_value"]) for s, p in positions.items() if s in sip_syms)
-    pending = sum(o["qty"] * (o["stop_price"] or 0) for o in orders
-                  if "-e-" in o["cid"] and o["status"] in OPEN_STATUSES and o["filled_qty"] == 0)
+    # market entries sent but not filled yet still count against the limit
+    pending = sum(p.get("notional", 0) for p in picks if p.get("state") == "entered"
+                  and not any(o["cid"] == pre + "e-" + p["symbol"] and o["filled_qty"] > 0 for o in orders))
     cap = equity * config.SIP_MAX_INVESTED_PCT / 100
-    for p in picks:
-        cid = pre + "e-" + p["symbol"]
-        if cid in by_cid or p.get("skip"):
-            continue  # each pick gets one entry order per day
-        qty = size(equity, p["level"], p["stop_dist"])
-        notional = qty * p["level"]
+    for p in todo:
+        q = quotes.get(p["symbol"])
+        if not q:
+            continue
+        long = p["side"] == "long"
+        crossed = q["high"] >= p["level"] if long else q["low"] <= p["level"]
+        if not crossed:
+            continue
+        px = q["last"]
+        qty = size(equity, px, p["stop_dist"])
+        notional = qty * px
         if qty < 1:
-            p["skip"] = "position too small"
+            p["state"] = "too small"
             continue
         if invested + pending + notional > cap:
-            break  # wait for room; keep rank order
-        if p["side"] == "short":
+            p["state"] = "missed: no room"
+            plan["events"].append({"time": hm(t), "symbol": p["symbol"], "event": "skipped: broke out while the 50% limit was full",
+                                   "price": px})
+            log.info("Breakout with no room: %s %s @ %.2f (limit full)", p["side"], p["symbol"], px)
+            continue
+        if not long:
             try:
                 a = broker.asset(p["symbol"])
             except Exception:  # noqa: BLE001
                 a = {"shortable": False, "easy_to_borrow": False}
             if not (a["shortable"] and a["easy_to_borrow"]):
-                p["skip"] = "not available to short"
+                p["state"] = "not shortable"
                 plan["events"].append({"time": hm(t), "symbol": p["symbol"], "event": "skipped: not shortable"})
                 continue
-        side = "buy" if p["side"] == "long" else "sell"
-        broker.stop_order(p["symbol"], qty, side, p["level"], cid)
+        side = "buy" if long else "sell"
+        broker.market_order(p["symbol"], qty, side, pre + "e-" + p["symbol"])
+        p.update(state="entered", detect_price=px, notional=notional, detect_time=hm(t))
         pending += notional
-        plan["events"].append({"time": hm(t), "symbol": p["symbol"], "event": f"entry order {side} stop",
-                               "price": p["level"], "qty": qty})
-        log.info("Entry order: %s %s x%d stop @ %.2f (rank %d, rvol %.1f)", side, p["symbol"], qty, p["level"],
-                 p["rank"], p["rvol"])
+        plan["events"].append({"time": hm(t), "symbol": p["symbol"], "event": f"entry order {side} market",
+                               "price": px, "aimed": p["level"], "qty": qty})
+        log.info("Breakout: %s %s x%d at market (level %.2f, last %.2f, rank %d, rvol %.1f)", side, p["symbol"], qty,
+                 p["level"], px, p["rank"], p["rvol"])
+
+
+def get_quotes(symbols: list[str], day: str) -> dict:
+    """Latest trade plus the high/low of the current minute (IEX feed) for each symbol.
+    Minute bars from before 9:35 are ignored: they belong to the first 5-minute candle."""
+    from alpaca.data.enums import DataFeed
+    from alpaca.data.historical import StockHistoricalDataClient
+    from alpaca.data.requests import StockSnapshotRequest
+
+    global _data_client
+    if _data_client is None:
+        key, secret = keys()
+        _data_client = StockHistoricalDataClient(key, secret)
+    back = {to_alpaca(s): s for s in symbols}
+    snaps = _data_client.get_stock_snapshot(StockSnapshotRequest(symbol_or_symbols=list(back), feed=DataFeed.IEX))
+    start = datetime.strptime(f"{day} 09:35", "%Y-%m-%d %H:%M").replace(tzinfo=NY)
+    out = {}
+    for a_sym, sn in snaps.items():
+        if not sn or not sn.latest_trade:
+            continue
+        last = float(sn.latest_trade.price)
+        hi = lo = last
+        mb = sn.minute_bar
+        if mb is not None and pd.Timestamp(mb.timestamp).tz_convert(NY) >= pd.Timestamp(start):
+            hi, lo = max(hi, float(mb.high)), min(lo, float(mb.low))
+        out[back.get(a_sym, a_sym)] = {"last": last, "high": hi, "low": lo}
+    return out
+
+
+_data_client = None
 
 
 def cancel_entries(broker, day, since, plan, t):
@@ -411,15 +464,27 @@ def load_plan(day: str) -> dict | None:
     return None
 
 
-def build_picks(broker, day: str, exclude: set[str]) -> list[dict]:
+def prepare(day: str):
+    """Everything known before the open: S&P 500 list, daily stats, normal opening volume."""
     symbols = sp500_symbols()
     stats = daily_stats(symbols, day)
     d0 = datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=NY)
     hist = opening_bars(list(stats.index), d0 - timedelta(days=30), d0)
     hist = hist[hist.day < day]
     baseline = hist.sort_values("day").groupby("symbol").tail(14).groupby("symbol")["volume"].mean()
-    today = opening_bars(list(stats.index), d0 + timedelta(hours=9, minutes=30), d0 + timedelta(hours=9, minutes=36))
-    today = today[today.day == day]
+    return stats, baseline
+
+
+def build_picks(broker, day: str, exclude: set[str], prepared=None) -> list[dict]:
+    stats, baseline = prepared or prepare(day)
+    d0 = datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=NY)
+    for attempt in range(8):  # the 9:30-9:35 bars can take a few seconds to be published
+        today = opening_bars(list(stats.index), d0 + timedelta(hours=9, minutes=30), d0 + timedelta(hours=9, minutes=36))
+        today = today[today.day == day]
+        if len(today) >= 100 or prepared is None:
+            break
+        log.info("Only %d opening bars so far; waiting for the rest", len(today))
+        time.sleep(10)
     picks = select_stocks(today, baseline, stats, exclude)
     log.info("Stocks in play for %s: %s", day, ", ".join(f"{p['symbol']}({p['side'][0]},{p['rvol']}x)" for p in picks) or "none")
     return picks
@@ -457,36 +522,46 @@ def run(phase: str, dry_run: bool, past_day: str | None = None):
                   close_t - timedelta(minutes=5))
     entry_until = min(datetime.strptime(f"{day} {config.SIP_ENTRY_UNTIL}", "%Y-%m-%d %H:%M").replace(tzinfo=NY),
                       flat_at - timedelta(minutes=10))
+    job_until = min(datetime.strptime(f"{day} {config.SIP_DAY_JOB_UNTIL}", "%Y-%m-%d %H:%M").replace(tzinfo=NY),
+                    flat_at - timedelta(minutes=5))
     since = datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=NY)
     log.info("---- Day trader %s phase %s (dry_run=%s); entries until %s, flat at %s ----",
              day, phase, dry_run, hm(entry_until), hm(flat_at))
 
     plan = load_plan(day) or {"date": day, "picks": [], "events": [], "dry_run": dry_run}
     if phase in ("day", "plan") and not plan["picks"]:
-        wait_until(datetime.strptime(f"{day} 09:35:20", "%Y-%m-%d %H:%M:%S").replace(tzinfo=NY))
+        prepared = prepare(day)   # before the open, so picks are ready seconds after 9:35
+        log.info("Prepared %d stocks before the open", len(prepared[0]))
+        wait_until(datetime.strptime(f"{day} 09:35:05", "%Y-%m-%d %H:%M:%S").replace(tzinfo=NY))
         held = set(broker.positions())
         crossover_orders = {o["symbol"] for o in broker.orders_today(since) if not o["cid"].startswith("sip-")}
-        plan["picks"] = build_picks(broker, day, held | crossover_orders)
+        plan["picks"] = build_picks(broker, day, held | crossover_orders, prepared)
         plan["equity_at_start"] = broker.account()["equity"]
         save_plan(plan)
         if phase == "plan":
             return
 
-    end = entry_until if phase == "day" else flat_at
+    end = job_until if phase == "day" else flat_at
+    last_save = 0.0
     while now_ny() < end:
         t = now_ny()
+        entries_open = t < entry_until
         try:
-            manage(broker, plan["picks"], day, t, since, allow_entries=(phase == "day"), plan=plan)
+            manage(broker, plan["picks"], day, t, since, allow_entries=entries_open, plan=plan)
         except Exception as exc:  # noqa: BLE001
             log.warning("Management pass failed: %s", exc)
-        save_plan(plan)
-        time.sleep(POLL_SECONDS)
+        if time.time() - last_save > 30:
+            save_plan(plan)
+            last_save = time.time()
+        time.sleep(FAST_POLL_SECONDS if entries_open else POLL_SECONDS)
 
     t = now_ny()
     if phase == "day":
         manage(broker, plan["picks"], day, t, since, allow_entries=False, plan=plan)
-        cancel_entries(broker, day, since, plan, t)
     else:
+        for p in plan["picks"]:
+            if not p.get("state"):
+                p["state"] = "no breakout"
         flatten(broker, day, since, plan, t)
         time.sleep(15)
         left = {s: p for s, p in broker.positions().items()

@@ -1,4 +1,4 @@
-"""Tests for sip_bot.py with a fake broker (no network, no orders)."""
+"""Tests for sip_bot.py with a fake broker and fake quotes (no network, no orders)."""
 import sys
 import unittest
 from datetime import datetime
@@ -13,6 +13,7 @@ import sip_bot  # noqa: E402
 NY = ZoneInfo("America/New_York")
 DAY = "2026-11-17"
 T = datetime(2026, 11, 17, 9, 36, tzinfo=NY)
+PRE = sip_bot.prefix(DAY)
 
 
 class FakeBroker:
@@ -21,7 +22,6 @@ class FakeBroker:
         self.orders = []
         self.pos = {}
         self.shortable = shortable
-        self.cancelled = []
 
     def account(self):
         return {"equity": self.equity, "cash": self.equity}
@@ -40,18 +40,19 @@ class FakeBroker:
                             "qty": qty, "filled_qty": 0.0, "filled_avg_price": None, "stop_price": round(stop_price, 2)})
 
     def market_order(self, symbol, qty, side, cid):
-        self.orders.append({"id": cid, "cid": cid, "symbol": symbol, "side": side, "type": "market", "status": "filled",
-                            "qty": qty, "filled_qty": qty, "filled_avg_price": None, "stop_price": None})
-        self.pos.pop(symbol, None)
+        o = {"id": cid, "cid": cid, "symbol": symbol, "side": side, "type": "market", "status": "new",
+             "qty": qty, "filled_qty": 0.0, "filled_avg_price": None, "stop_price": None}
+        self.orders.append(o)
+        if "-x-" in cid:  # end-of-day close-outs fill at once
+            o.update(status="filled", filled_qty=qty)
+            self.pos.pop(symbol, None)
 
     def cancel(self, oid):
         for o in self.orders:
             if o["id"] == oid:
                 o["status"] = "canceled"
-        self.cancelled.append(oid)
 
-    # helpers for the test
-    def fill(self, cid, price, qty_sign=1):
+    def fill(self, cid, price):
         o = next(o for o in self.orders if o["cid"] == cid)
         o.update(status="filled", filled_qty=o["qty"], filled_avg_price=price)
         q = o["qty"] if o["side"] == "buy" else -o["qty"]
@@ -68,73 +69,120 @@ def picks():
     return out
 
 
-class ManageTests(unittest.TestCase):
+def quiet(ps):
+    """Quotes where nothing has reached its level yet."""
+    q = {}
+    for p in ps:
+        px = p["level"] * (0.99 if p["side"] == "long" else 1.01)
+        q[p["symbol"]] = {"last": px, "high": px, "low": px}
+    return q
+
+
+def broke(q, p, last=None):
+    px = last if last is not None else p["level"] * (1.0005 if p["side"] == "long" else 0.9995)
+    q[p["symbol"]] = {"last": px, "high": max(px, p["level"]), "low": min(px, p["level"])}
+
+
+class EntryTests(unittest.TestCase):
     def setUp(self):
         self.b = FakeBroker()
         self.p = picks()
         self.plan = {"events": []}
 
-    def run_once(self, entries=True):
-        sip_bot.manage(self.b, self.p, DAY, T, T, entries, self.plan)
+    def run_once(self, quotes, entries=True):
+        sip_bot.manage(self.b, self.p, DAY, T, T, entries, self.plan, quotes=quotes)
 
-    def test_entries_fill_cap_in_rank_order(self):
-        self.run_once()
-        entries = [o for o in self.b.orders if "-e-" in o["cid"]]
-        # each position is capped at 10% of $100k, cap is 50% -> 5 entry orders
-        self.assertEqual([o["symbol"] for o in entries], ["AAA", "BBB", "CCC", "DDD", "EEE"])
-        a = entries[0]
-        self.assertEqual((a["side"], a["qty"], a["stop_price"]), ("buy", 100, 100))
-        bb = entries[1]
-        self.assertEqual((bb["side"], bb["qty"], bb["stop_price"]), ("sell", 200, 50))
-        # a second pass places nothing new
-        self.run_once()
-        self.assertEqual(len([o for o in self.b.orders if "-e-" in o["cid"]]), 5)
+    def entries(self):
+        return [o for o in self.b.orders if "-e-" in o["cid"]]
 
-    def test_fill_places_protective_stop_once(self):
-        self.run_once()
-        self.b.fill(sip_bot.prefix(DAY) + "e-AAA", 100.10)
-        self.b.fill(sip_bot.prefix(DAY) + "e-BBB", 49.95)
-        self.run_once()
-        self.run_once()
+    def test_nothing_until_a_breakout(self):
+        self.run_once(quiet(self.p))
+        self.assertEqual(self.b.orders, [])
+
+    def test_first_breakout_gets_the_room_not_the_top_rank(self):
+        q = quiet(self.p)
+        broke(q, self.p[2])   # CCC (rank 3) breaks out first
+        broke(q, self.p[4])   # EEE (rank 5, short)
+        self.run_once(q)
+        got = {o["symbol"]: o for o in self.entries()}
+        self.assertEqual(set(got), {"CCC", "EEE"})
+        self.assertEqual((got["CCC"]["type"], got["CCC"]["side"]), ("market", "buy"))
+        self.assertEqual(got["EEE"]["side"], "sell")
+        # a breakout is acted on once
+        self.run_once(q)
+        self.assertEqual(len(self.entries()), 2)
+
+    def test_limit_counts_unfilled_market_orders_and_skips_when_full(self):
+        q = quiet(self.p)
+        for p in self.p[:6]:
+            broke(q, p)   # six break out in the same few seconds; each position is ~10% of the account
+        self.run_once(q)
+        self.assertEqual([o["symbol"] for o in self.entries()], ["AAA", "BBB", "CCC", "DDD", "EEE"])
+        fff = next(p for p in self.p if p["symbol"] == "FFF")
+        self.assertEqual(fff["state"], "missed: no room")
+        # FFF is not retried later even if room frees up (same as the backtest)
+        self.b.fill(PRE + "e-AAA", 100.05)
+        self.b.pos.pop("AAA")   # stopped out
+        self.run_once(q)
+        self.assertNotIn("FFF", [o["symbol"] for o in self.entries()])
+
+    def test_room_frees_after_an_exit(self):
+        q = quiet(self.p)
+        for p in self.p[:5]:
+            broke(q, p)
+        self.run_once(q)
+        for o in self.entries():
+            self.b.fill(o["cid"], o["qty"] and next(p["level"] for p in self.p if p["symbol"] == o["symbol"]))
+        self.b.pos.pop("AAA")   # AAA was stopped out: room for one more
+        broke(q, self.p[6])     # GGG breaks out now
+        self.run_once(q)
+        self.assertIn("GGG", [o["symbol"] for o in self.entries()])
+
+    def test_fill_places_stop_and_records_slippage(self):
+        q = quiet(self.p)
+        broke(q, self.p[0])
+        broke(q, self.p[1])
+        self.run_once(q)
+        self.b.fill(PRE + "e-AAA", 100.10)   # aimed 100.00 -> 0.10% worse
+        self.b.fill(PRE + "e-BBB", 49.95)    # short aimed 50.00 -> 0.10% worse
+        self.run_once(q)
+        self.run_once(q)
         stops = {o["symbol"]: o for o in self.b.orders if "-s-" in o["cid"]}
-        self.assertEqual(set(stops), {"AAA", "BBB"})
-        self.assertEqual((stops["AAA"]["side"], stops["AAA"]["qty"], stops["AAA"]["stop_price"]), ("sell", 100, 99.6))
-        self.assertEqual((stops["BBB"]["side"], stops["BBB"]["qty"], stops["BBB"]["stop_price"]), ("buy", 200, 50.25))
-
-    def test_cancelled_entry_frees_room_but_is_not_retried(self):
-        self.run_once()
-        self.b.cancel(sip_bot.prefix(DAY) + "e-CCC")
-        self.run_once()
-        syms = [o["symbol"] for o in self.b.orders if "-e-" in o["cid"]]
-        self.assertEqual(syms.count("CCC"), 1)
-        self.assertIn("FFF", syms)          # next in rank took the freed room
-        self.assertNotIn("GGG", syms)
+        self.assertEqual((stops["AAA"]["side"], stops["AAA"]["qty"], stops["AAA"]["stop_price"]), ("sell", 99, 99.6))   # sized at the price seen at the breakout (100.05)
+        self.assertEqual((stops["BBB"]["side"], stops["BBB"]["stop_price"]), ("buy", 50.25))
+        fills = {e["symbol"]: e for e in self.plan["events"] if e["event"] == "entry filled"}
+        self.assertAlmostEqual(fills["AAA"]["slippage_pct"], 0.1, places=3)
+        self.assertAlmostEqual(fills["BBB"]["slippage_pct"], 0.1, places=3)
 
     def test_not_shortable_is_skipped(self):
         self.b.shortable = False
-        self.run_once()
-        syms = [o["symbol"] for o in self.b.orders if "-e-" in o["cid"]]
-        self.assertNotIn("BBB", syms)
-        self.assertNotIn("EEE", syms)
-        self.assertTrue(any(e["event"].startswith("skipped") for e in self.plan["events"]))
+        q = quiet(self.p)
+        broke(q, self.p[1])
+        self.run_once(q)
+        self.assertEqual(self.entries(), [])
+        self.assertTrue(any(e["event"].startswith("skipped: not shortable") for e in self.plan["events"]))
 
-    def test_no_entries_after_window(self):
-        self.run_once(entries=False)
+    def test_no_entries_after_cutoff(self):
+        q = quiet(self.p)
+        broke(q, self.p[0])
+        self.run_once(q, entries=False)
         self.assertEqual(self.b.orders, [])
 
     def test_flatten_closes_only_own_positions(self):
-        self.run_once()
-        self.b.fill(sip_bot.prefix(DAY) + "e-AAA", 100.10)
-        self.b.fill(sip_bot.prefix(DAY) + "e-BBB", 49.95)
-        self.run_once()
-        self.b.pos["XOM"] = {"qty": 10.0, "market_value": 1000.0, "avg_entry_price": 100}   # crossover bot's stock
+        q = quiet(self.p)
+        broke(q, self.p[0])
+        broke(q, self.p[1])
+        self.run_once(q)
+        self.b.fill(PRE + "e-AAA", 100.10)
+        self.b.fill(PRE + "e-BBB", 49.95)
+        self.run_once(q)
+        self.b.pos["XOM"] = {"qty": 10.0, "market_value": 1000.0, "avg_entry_price": 100}   # crossover bot
         sip_bot.flatten(self.b, DAY, T, self.plan, T)
         closes = {o["symbol"]: o for o in self.b.orders if "-x-" in o["cid"]}
         self.assertEqual(set(closes), {"AAA", "BBB"})
-        self.assertEqual((closes["AAA"]["side"], closes["AAA"]["qty"]), ("sell", 100))
-        self.assertEqual((closes["BBB"]["side"], closes["BBB"]["qty"]), ("buy", 200))
+        self.assertEqual((closes["AAA"]["side"], closes["BBB"]["side"]), ("sell", "buy"))
         self.assertIn("XOM", self.b.pos)
-        self.assertTrue(all(o["status"] != "new" for o in self.b.orders))  # every open order cancelled
+        self.assertTrue(all(o["status"] != "new" for o in self.b.orders if o["type"] == "stop"))
 
 
 class SelectTests(unittest.TestCase):
