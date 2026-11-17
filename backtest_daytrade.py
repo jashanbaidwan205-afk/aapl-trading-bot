@@ -25,8 +25,11 @@ Backtests of three well-known professional day-trading methods on S&P 500 stocks
 Shared rules (same limits as the live bot): risk RISK_PCT of the account per trade,
 at most MAX_POS_PCT of the account per position, positions together worth at most
 MAX_INVESTED_PCT of the account (no margin), SLIPPAGE_PCT against you on every fill,
-everything closed by 4 PM. If a bar touches the stop, the stop is assumed to fill
-first. Each strategy also runs with 70% of each month's net profit withdrawn.
+everything closed by 4 PM. Inside a 5-minute bar, prices are assumed to move
+open -> low -> high -> close on a rising bar and open -> high -> low -> close on a
+falling bar (the usual backtesting convention); stops and targets fill at their
+level, or at the open if a bar opens past them. Each strategy also runs with 70% of
+each month's net profit withdrawn.
 
 Data: Alpaca 5-minute bars (split-adjusted, with volume and VWAP), Yahoo Finance daily
 prices. Limits: today's S&P 500 members only; 5-minute bars can't show the order of
@@ -163,23 +166,47 @@ def gap_trade(b, gap_up: bool):
             "same_bar_target": False}
 
 
-def exit_from(b, k, side, stop, target, same_bar_target):
-    """Walk bars from k: stop first, then target, else the last bar's close (all with slippage)."""
+def bar_path(o, h, l, c):
+    """Standard assumption for the order of prices inside a bar:
+    a rising bar goes open -> low -> high -> close, a falling bar open -> high -> low -> close."""
+    return [o, l, h, c] if c >= o else [o, h, l, c]
+
+
+def exit_from(b, k, side, stop, target, entry_px):
+    """Follow each bar's price path from the entry on; exit at the first stop or target
+    crossed, else at the last bar's close. All exits pay slippage."""
     slip = S["SLIPPAGE_PCT"] / 100
     long = side == "long"
+    out = (lambda px: px * (1 - slip)) if long else (lambda px: px * (1 + slip))
     for i in range(k, len(b)):
-        if long and b.low[i] <= stop:
-            px = stop if i == k else min(stop, b.open[i])
-            return b.hm[i], px * (1 - slip), "stop"
-        if not long and b.high[i] >= stop:
-            px = stop if i == k else max(stop, b.open[i])
-            return b.hm[i], px * (1 + slip), "stop"
-        if target is not None and (i > k or same_bar_target):
-            if long and b.high[i] >= target:
-                return b.hm[i], (target if i == k else max(target, b.open[i])) * (1 - slip), "target"
-            if not long and b.low[i] <= target:
-                return b.hm[i], (target if i == k else min(target, b.open[i])) * (1 + slip), "target"
-    return b.hm[-1], b.close[-1] * ((1 - slip) if long else (1 + slip)), "close"
+        path = bar_path(b.open[i], b.high[i], b.low[i], b.close[i])
+        if i == k:
+            # Skip the part of the entry bar before the entry price was first reached
+            j = 0
+            for j in range(1, 4):
+                a, z = path[j - 1], path[j]
+                if min(a, z) <= entry_px <= max(a, z):
+                    break
+            path = [entry_px] + path[j:]
+        prev = path[0]
+        if i > k:  # the bar opened past a level: fill at the open
+            if (long and prev <= stop) or (not long and prev >= stop):
+                return b.hm[i], out(prev), "stop"
+            if target is not None and ((long and prev >= target) or (not long and prev <= target)):
+                return b.hm[i], out(prev), "target"
+        for p in path[1:]:
+            lo, hi = min(prev, p), max(prev, p)
+            # whichever level the move from prev to p reaches first
+            hits = []
+            if lo <= stop <= hi:
+                hits.append((abs(stop - prev), stop, "stop"))
+            if target is not None and lo <= target <= hi:
+                hits.append((abs(target - prev), target, "target"))
+            if hits:
+                _, px, why = min(hits)
+                return b.hm[i], out(px), why
+            prev = p
+    return b.hm[-1], out(b.close[-1]), "close"
 
 
 # ---------------------------------------------------------------------------
@@ -263,7 +290,7 @@ def simulate(days, cands_by_day, bars_by, max_trades, spy, withdraw_pct):
             if sum(x["entry"] * x["shares"] for x in open_t) + qty * entry > equity * S["MAX_INVESTED_PCT"] / 100:
                 continue
             b = bars_by[(s, d)]
-            xhm, xpx, why = exit_from(b, t["k"], t["side"], t["stop"], t["target"], t["same_bar_target"])
+            xhm, xpx, why = exit_from(b, t["k"], t["side"], t["stop"], t["target"], t["entry_raw"])
             pnl = (xpx - entry) * qty if long else (entry - xpx) * qty
             rec = {"day": d, "symbol": s, "side": t["side"], "entry_hm": ehm, "exit_hm": str(xhm), "shares": qty,
                    "entry": round(entry, 2), "stop": round(t["stop"], 2),
