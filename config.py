@@ -57,7 +57,7 @@ SIP_MIN_ATR = 0.50            # 14-day average daily range ($)
 SIP_STOP_ATR = 0.10           # Stop distance as a fraction of the 14-day ATR
 SIP_RISK_PCT = 0.5            # Max loss at the stop, % of the account, per trade
 SIP_MAX_POS_PCT = 10.0        # Largest single position, % of the account
-SIP_MAX_INVESTED_PCT = 50.0   # All open day-trade positions, % of the account
+SIP_MAX_INVESTED_PCT = 100.0  # All open day-trade positions, % of the account (100 = the whole account, no borrowed money)
 SIP_ALLOW_SHORT = True        # Trade down-candle breakdowns as short sales
 SIP_ENTRY_UNTIL = "15:30"     # No new entries after this time (New York)
 SIP_DAY_JOB_UNTIL = "15:00"   # The morning GitHub job hands over to the afternoon job (6-hour job limit)

@@ -527,18 +527,23 @@ def main() -> None:
             if name == "sip_old":
                 trades, eq, months, withdrawn = simulate_live(days, cands["sip_old"], bars_by, spy, wd)
             elif name in ("sip_live", "sip_live_slip10"):
-                # the new live rules = the Stocks in Play breakout, first come first served within the
-                # 50% limit, entries until 3:30 PM, closed at 3:55 PM; optionally with double slippage
-                old_slip = S["SLIPPAGE_PCT"]
-                S["SLIPPAGE_PCT"] = old_slip * (2 if name == "sip_live_slip10" else 1)
+                # the live day trader's rules = the Stocks in Play breakout, first come first served within
+                # the live bot's own limit (config.SIP_MAX_INVESTED_PCT), entries until 3:30 PM, closed at
+                # 3:55 PM; optionally with double slippage
+                saved = dict(S)
+                S["SLIPPAGE_PCT"] = saved["SLIPPAGE_PCT"] * (2 if name == "sip_live_slip10" else 1)
+                S["MAX_INVESTED_PCT"] = getattr(config, "SIP_MAX_INVESTED_PCT", saved["MAX_INVESTED_PCT"])
                 try:
                     trades, eq, months, withdrawn = simulate(days, cands["sip"], bars_by, max_trades, spy, wd,
                                                              flatten_at=LIVE_FLATTEN_AT)
+                    s = summarize(name, trades, eq, months, withdrawn, wd, max_trades)
                 finally:
-                    S["SLIPPAGE_PCT"] = old_slip
+                    S.clear()
+                    S.update(saved)
             else:
                 trades, eq, months, withdrawn = simulate(days, cands[name], bars_by, max_trades, spy, wd)
-            s = summarize(name, trades, eq, months, withdrawn, wd, max_trades)
+            if name not in ("sip_live", "sip_live_slip10"):
+                s = summarize(name, trades, eq, months, withdrawn, wd, max_trades)
             s.update(variant=variant, strategy=name, order=order,
                      label=label + (", 70% of profits withdrawn" if wd else ""))
             summ.append(s)

@@ -88,6 +88,12 @@ class EntryTests(unittest.TestCase):
         self.b = FakeBroker()
         self.p = picks()
         self.plan = {"events": []}
+        # the tests use a 50% limit (5 positions of ~10%), whatever config.py says
+        self._cap = sip_bot.config.SIP_MAX_INVESTED_PCT
+        sip_bot.config.SIP_MAX_INVESTED_PCT = 50.0
+
+    def tearDown(self):
+        sip_bot.config.SIP_MAX_INVESTED_PCT = self._cap
 
     def run_once(self, quotes, entries=True):
         sip_bot.manage(self.b, self.p, DAY, T, T, entries, self.plan, quotes=quotes)
@@ -126,6 +132,15 @@ class EntryTests(unittest.TestCase):
         self.b.pos.pop("AAA")   # stopped out
         self.run_once(q)
         self.assertNotIn("FFF", [o["symbol"] for o in self.entries()])
+
+    def test_full_account_limit_allows_ten_positions(self):
+        sip_bot.config.SIP_MAX_INVESTED_PCT = 100.0
+        more = picks() + [dict(p, symbol=p["symbol"] + "X", rank=p["rank"] + 7) for p in picks()]
+        q = quiet(more)
+        for p in more:
+            broke(q, p)
+        sip_bot.manage(self.b, more, DAY, T, T, True, self.plan, quotes=q)
+        self.assertEqual(len(self.entries()), 10)   # ten positions of ~10% each, then the limit is full
 
     def test_room_frees_after_an_exit(self):
         q = quiet(self.p)
