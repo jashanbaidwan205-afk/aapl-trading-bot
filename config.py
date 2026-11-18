@@ -51,12 +51,13 @@ SCAN_FILE = "scan_results.json"     # what the latest run saw for every stock it
 # It never trades a stock the crossover bot holds.
 SIP_ENABLED = True            # False = the scheduled day trader does nothing
 SIP_TOP = 20                  # Stocks in play to consider each day
-SIP_MIN_RVOL = 1.0            # Opening volume at least this many times normal
+SIP_MIN_RVOL = 2.0            # Opening volume at least this many times normal (2x did better than 1x in the backtest)
 SIP_MIN_AVG_VOLUME = 1_000_000  # 14-day average daily volume (shares)
 SIP_MIN_ATR = 0.50            # 14-day average daily range ($)
 SIP_STOP_ATR = 0.10           # Stop distance as a fraction of the 14-day ATR
-SIP_RISK_PCT = 0.5            # Max loss at the stop, % of the account, per trade
-SIP_MAX_POS_PCT = 10.0        # Largest single position, % of the account
+SIP_RISK_PCT = 1.0            # Max loss at the stop, % of the account, per trade
+SIP_MAX_POS_PCT = 20.0        # Largest single position, % of the account (with the tight stops this sets the size)
+SIP_BREAKEVEN_R = 1.0         # Move the stop to the entry price once a trade is this many times its risk in profit (None = off)
 SIP_MAX_INVESTED_PCT = 50.0   # All open day-trade positions, % of the account (50 did better than 100 in the 1-year backtest)
 SIP_ALLOW_SHORT = True        # Trade down-candle breakdowns as short sales
 SIP_ENTRY_UNTIL = "15:30"     # No new entries after this time (New York)

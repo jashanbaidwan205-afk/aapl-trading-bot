@@ -150,6 +150,20 @@ class Broker:
             symbol=symbol, qty=qty, side=OrderSide.BUY if side == "buy" else OrderSide.SELL,
             time_in_force=TimeInForce.DAY, stop_price=round(stop_price, 2), client_order_id=cid))
 
+    def move_stop(self, order_id, stop_price, cid):
+        """Change a resting stop order's price (Alpaca replaces it with a new order named cid)."""
+        if self.dry:
+            log.info("[DRY RUN] would move stop %s to %.2f (%s)", order_id, stop_price, cid)
+            for o in self.fake:
+                if o["id"] == order_id:
+                    o["status"] = "replaced"
+                    self.fake.append(dict(o, id=cid, cid=cid, status="new", stop_price=stop_price))
+                    break
+            return None
+        from alpaca.trading.requests import ReplaceOrderRequest
+        return self.c.replace_order_by_id(order_id, ReplaceOrderRequest(stop_price=round(stop_price, 2),
+                                                                        client_order_id=cid))
+
     def market_order(self, symbol, qty, side, cid):
         if self.dry:
             log.info("[DRY RUN] would place %s market %s x%d (%s)", side, symbol, qty, cid)
@@ -324,16 +338,45 @@ def manage(broker, picks: list[dict], day: str, t: datetime, since: datetime, al
                                "stop": round(stop_px, 2), "aimed": aimed, "slippage_pct": round(slip, 4)})
         log.info("Entry filled: %s %s x%d @ %.2f -> stop %.2f", pick["side"], sym, qty, fill, stop_px)
 
-    if not allow_entries:
+    todo = [p for p in picks if not p.get("state")] if allow_entries else []
+    # stops still at their first price, for the move to breakeven
+    be_r = getattr(config, "SIP_BREAKEVEN_R", None)
+    to_move = []
+    if be_r:
+        for o in orders:
+            if "-s-" in o["cid"] and not o["cid"].endswith("-be") and o["status"] in OPEN_STATUSES                     and o["cid"] + "-be" not in by_cid:
+                to_move.append(o)
+    if not todo and not to_move:
+        return
+    if quotes is None:
+        quotes = get_quotes(sorted({p["symbol"] for p in todo} | {o["symbol"] for o in to_move}), day)
+
+    # 1b) once a trade is SIP_BREAKEVEN_R x its risk in profit, move its stop to the entry price
+    for o in to_move:
+        sym = o["symbol"]
+        pick = next((p for p in picks if p["symbol"] == sym), None)
+        entry = next((e for e in orders if "-e-" in e["cid"] and e["symbol"] == sym and e["filled_qty"] > 0), None)
+        q = quotes.get(sym)
+        if pick is None or entry is None or not q or not entry["filled_avg_price"]:
+            continue
+        fill, long = entry["filled_avg_price"], pick["side"] == "long"
+        trigger = fill + be_r * pick["stop_dist"] if long else fill - be_r * pick["stop_dist"]
+        if not ((q["high"] >= trigger) if long else (q["low"] <= trigger)):
+            continue
+        try:
+            broker.move_stop(o["id"], fill, o["cid"] + "-be")
+        except Exception as exc:  # noqa: BLE001  (e.g. the stop filled a moment ago)
+            log.warning("Could not move %s's stop to breakeven: %s", sym, exc)
+            continue
+        plan["events"].append({"time": hm(t), "symbol": sym, "event": "stop moved to breakeven",
+                               "price": q["last"], "stop": round(fill, 2)})
+        log.info("Breakeven: %s %s reached %.2f (+%gR); stop moved to %.2f", pick["side"], sym, trigger, be_r, fill)
+
+    if not todo:
         return
 
     # 2) entries: the first pick to break its level gets the room (like the backtest).
     #    Nothing rests at the broker, so several fills can never overshoot the limit.
-    todo = [p for p in picks if not p.get("state")]
-    if not todo:
-        return
-    if quotes is None:
-        quotes = get_quotes([p["symbol"] for p in todo], day)
     sip_syms = {o["symbol"] for o in orders if "-e-" in o["cid"]}
     invested = sum(abs(p["market_value"]) for s, p in positions.items() if s in sip_syms)
     # market entries sent but not filled yet still count against the limit

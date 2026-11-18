@@ -47,6 +47,11 @@ class FakeBroker:
             o.update(status="filled", filled_qty=qty)
             self.pos.pop(symbol, None)
 
+    def move_stop(self, oid, stop_price, cid):
+        old = next(o for o in self.orders if o["id"] == oid)
+        old["status"] = "replaced"
+        self.orders.append(dict(old, id=cid, cid=cid, status="new", stop_price=round(stop_price, 2)))
+
     def cancel(self, oid):
         for o in self.orders:
             if o["id"] == oid:
@@ -83,17 +88,22 @@ def broke(q, p, last=None):
     q[p["symbol"]] = {"last": px, "high": max(px, p["level"]), "low": min(px, p["level"])}
 
 
-class EntryTests(unittest.TestCase):
+PINNED = {"SIP_MAX_INVESTED_PCT": 50.0, "SIP_RISK_PCT": 0.5, "SIP_MAX_POS_PCT": 10.0, "SIP_BREAKEVEN_R": None}
+
+
+class EntryBase(unittest.TestCase):
     def setUp(self):
         self.b = FakeBroker()
         self.p = picks()
         self.plan = {"events": []}
-        # the tests use a 50% limit (5 positions of ~10%), whatever config.py says
-        self._cap = sip_bot.config.SIP_MAX_INVESTED_PCT
-        sip_bot.config.SIP_MAX_INVESTED_PCT = 50.0
+        # the entry tests use a 50% limit with positions of ~10% and no breakeven move, whatever config.py says
+        self._saved = {k: getattr(sip_bot.config, k, None) for k in PINNED}
+        for k, v in PINNED.items():
+            setattr(sip_bot.config, k, v)
 
     def tearDown(self):
-        sip_bot.config.SIP_MAX_INVESTED_PCT = self._cap
+        for k, v in self._saved.items():
+            setattr(sip_bot.config, k, v)
 
     def run_once(self, quotes, entries=True):
         sip_bot.manage(self.b, self.p, DAY, T, T, entries, self.plan, quotes=quotes)
@@ -101,6 +111,8 @@ class EntryTests(unittest.TestCase):
     def entries(self):
         return [o for o in self.b.orders if "-e-" in o["cid"]]
 
+
+class EntryTests(EntryBase):
     def test_nothing_until_a_breakout(self):
         self.run_once(quiet(self.p))
         self.assertEqual(self.b.orders, [])
@@ -220,8 +232,52 @@ class SelectTests(unittest.TestCase):
         self.assertAlmostEqual(p[0]["stop_dist"], 0.2)
 
     def test_size(self):
-        self.assertEqual(sip_bot.size(100_000, 100, 0.5), 100)   # capped by 10% position
-        self.assertEqual(sip_bot.size(100_000, 20, 1.0), 500)    # capped by 0.5% risk ($500 / $1)
+        # live settings: 1% risk, at most 20% of the account per position
+        self.assertEqual(sip_bot.size(100_000, 100, 0.5), 200)   # capped by 20% position
+        self.assertEqual(sip_bot.size(100_000, 20, 1.0), 1000)   # capped by 1% risk ($1,000 / $1)
+
+
+class BreakevenTests(EntryBase):
+    """Long AAA fills at 100.10 with a 0.50 stop (99.60): at 100.60 (+1R) the stop moves to 100.10."""
+
+    def setUp(self):
+        super().setUp()
+        sip_bot.config.SIP_BREAKEVEN_R = 1.0
+        self.q = quiet(self.p)
+        broke(self.q, self.p[0])
+        self.run_once(self.q)
+        self.b.fill(PRE + "e-AAA", 100.10)
+        self.run_once(self.q)                 # places the first stop at 99.60
+
+    def stops(self):
+        return [o for o in self.b.orders if "-s-" in o["cid"]]
+
+    def test_stop_stays_until_plus_one_r(self):
+        self.q["AAA"] = {"last": 100.5, "high": 100.55, "low": 100.4}
+        self.run_once(self.q)
+        self.assertEqual([(o["stop_price"], o["status"]) for o in self.stops()], [(99.6, "new")])
+
+    def test_stop_moves_to_entry_at_plus_one_r(self):
+        self.q["AAA"] = {"last": 100.58, "high": 100.62, "low": 100.5}
+        self.run_once(self.q)
+        self.assertEqual([(o["stop_price"], o["status"]) for o in self.stops()], [(99.6, "replaced"), (100.1, "new")])
+        self.assertEqual(self.stops()[1]["cid"], PRE + "s-AAA-be")
+        # later passes neither move it again nor add another stop
+        self.run_once(self.q)
+        self.run_once(self.q, entries=False)
+        self.assertEqual(len(self.stops()), 2)
+        self.assertIn("stop moved to breakeven", [e["event"] for e in self.plan["events"]])
+
+    def test_short_moves_down(self):
+        broke(self.q, self.p[1])               # BBB short at 50, stop distance 0.30
+        self.run_once(self.q)
+        self.b.fill(PRE + "e-BBB", 49.95)
+        self.run_once(self.q)
+        self.q["BBB"] = {"last": 49.66, "high": 49.7, "low": 49.64}   # 49.95 - 0.30 = 49.65 reached
+        self.run_once(self.q)
+        bbb = [o for o in self.stops() if o["symbol"] == "BBB"]
+        self.assertEqual([(o["side"], o["stop_price"], o["status"]) for o in bbb],
+                         [("buy", 50.25, "replaced"), ("buy", 49.95, "new")])
 
 
 if __name__ == "__main__":
