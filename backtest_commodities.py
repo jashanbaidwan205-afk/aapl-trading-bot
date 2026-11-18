@@ -684,6 +684,19 @@ def main():
 
     syms = list(MARKETS)
     daily = orb.daily_data(syms + ["SPY", "UUP"], a.years + 1)
+    # Yahoo sometimes drops one symbol from a batch (e.g. "database is locked"): fetch it again on its own
+    for s in syms + ["SPY", "UUP"]:
+        for attempt in range(4):
+            col = daily["Close"].get(s)
+            if col is not None and col.notna().sum() > 200:
+                break
+            import time as _t
+            _t.sleep(5 * (attempt + 1))
+            one = orb.daily_data([s], a.years + 1)
+            for f in daily:
+                daily[f] = daily[f].drop(columns=[s], errors="ignore").join(one[f][[s]], how="outer") if s in one[f] else daily[f]
+        else:
+            raise SystemExit(f"No daily prices for {s} from Yahoo Finance after retries")
     closes = daily["Close"]
     today = pd.Timestamp.now(tz=orb.NY).strftime("%Y-%m-%d")
     idx = [d for d in closes.index if d.strftime("%Y-%m-%d") < today]
