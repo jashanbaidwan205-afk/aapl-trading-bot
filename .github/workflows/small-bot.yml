@@ -1,0 +1,139 @@
+name: Small Bot ($1,000 account)
+
+# The separate small-account day trader (small_bot.py): its own Alpaca account, keys
+# SMALL_ALPACA_API_KEY / SMALL_ALPACA_SECRET_KEY. Paper account only. Two jobs because GitHub limits one job to 6 hours:
+#   day   - 9:20 AM New York until the 3:30 PM entry cutoff: pick stocks, place entries, add stops
+#   close - then until 3:55 PM: keep stops in place, close everything, save the log
+on:
+  schedule:
+    # GitHub can delay or drop scheduled runs, so there are several chances each morning
+    # (UTC times cover both daylight and standard time). The "Check time" step only runs
+    # between 9:10 AM and noon New York; a run already in progress makes later ones wait,
+    # and by the time they start it is past noon, so they skip.
+    - cron: "11 13 * * 1-5"
+    - cron: "23 13 * * 1-5"
+    - cron: "37 13 * * 1-5"
+    - cron: "11 14 * * 1-5"
+    - cron: "23 14 * * 1-5"
+    - cron: "37 14 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (pick stocks and log, place no orders)"
+        type: boolean
+        default: true
+      plan_only:
+        description: "Only show today's picks, then stop"
+        type: boolean
+        default: false
+      test_minutes:
+        description: "Dry-run test: stop the morning job after this many minutes (blank = full day)"
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: small-bot
+  cancel-in-progress: false
+
+jobs:
+  day:
+    runs-on: ubuntu-latest
+    timeout-minutes: 358
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+      dry: ${{ steps.gate.outputs.dry }}
+      full: ${{ steps.gate.outputs.full }}
+    steps:
+      - name: Check time
+        id: gate
+        env:
+          HAS_KEYS: ${{ secrets.SMALL_ALPACA_API_KEY != '' && secrets.SMALL_ALPACA_SECRET_KEY != '' }}
+        run: |
+          if [ "$HAS_KEYS" != "true" ]; then
+            echo "SMALL_ALPACA_API_KEY / SMALL_ALPACA_SECRET_KEY are not set yet: add the \$1,000 account's keys as repository secrets."
+            echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "dry=${{ inputs.dry_run }}" >> "$GITHUB_OUTPUT"
+            if [ "${{ inputs.plan_only }}" = "true" ] || [ -n "${{ inputs.test_minutes }}" ]; then echo "full=false" >> "$GITHUB_OUTPUT"; else echo "full=true" >> "$GITHUB_OUTPUT"; fi
+            exit 0
+          fi
+          echo "dry=false" >> "$GITHUB_OUTPUT"
+          echo "full=true" >> "$GITHUB_OUTPUT"
+          now=$(TZ=America/New_York date +%H%M)
+          if [ "$now" -ge 0910 ] && [ "$now" -le 1200 ]; then echo "run=true" >> "$GITHUB_OUTPUT"
+          else echo "Outside 9:10 AM-noon New York ($now); skipping."; echo "run=false" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.run == 'true'
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        if: steps.gate.outputs.run == 'true'
+        run: pip install -r requirements.txt lxml
+
+      - name: Trade (morning to entry cutoff)
+        if: steps.gate.outputs.run == 'true'
+        env:
+          SMALL_ALPACA_API_KEY: ${{ secrets.SMALL_ALPACA_API_KEY }}
+          SMALL_ALPACA_SECRET_KEY: ${{ secrets.SMALL_ALPACA_SECRET_KEY }}
+        run: |
+          if [ -n "${{ inputs.test_minutes }}" ]; then
+            python small_bot.py --phase day --dry-run --minutes "${{ inputs.test_minutes }}"
+          elif [ "${{ steps.gate.outputs.full }}" = "true" ]; then
+            python small_bot.py --phase day $([ "${{ steps.gate.outputs.dry }}" = "true" ] && echo --dry-run)
+          else
+            python small_bot.py --phase plan --day "$(TZ=America/New_York date +%F)" --dry-run
+          fi
+
+      - name: Hand state to the afternoon job
+        if: always() && steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: small-state
+          path: |
+            small_plan.json
+            small_bot.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  close:
+    needs: day
+    # always(): even if the morning job failed, the afternoon job still closes positions
+    if: always() && needs.day.outputs.run == 'true' && needs.day.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt lxml
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: small-state
+
+      - name: Manage stops and close by the end of the day
+        env:
+          SMALL_ALPACA_API_KEY: ${{ secrets.SMALL_ALPACA_API_KEY }}
+          SMALL_ALPACA_SECRET_KEY: ${{ secrets.SMALL_ALPACA_SECRET_KEY }}
+        run: python small_bot.py --phase close $([ "${{ needs.day.outputs.dry }}" = "true" ] && echo --dry-run)
+
+      - name: Save log and plan to the repo
+        if: always()
+        run: |
+          git config user.name "trading-bot"
+          git config user.email "trading-bot@users.noreply.github.com"
+          for f in small_bot.log small_plan.json; do [ -f "$f" ] && git add -f "$f"; done
+          if git diff --cached --quiet; then echo "Nothing to save"; exit 0; fi
+          git commit -m "Small bot $(TZ=America/New_York date '+%Y-%m-%d')"
+          for i in 1 2 3; do git pull --rebase -q && git push && break; sleep 5; done
