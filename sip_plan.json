@@ -1,0 +1,422 @@
+{
+ "date": "2026-11-18",
+ "picks": [
+  {
+   "symbol": "TJX",
+   "rvol": 9.65,
+   "side": "long",
+   "level": 138.67,
+   "atr": 4.067,
+   "stop_dist": 0.4067,
+   "first_open": 136.73,
+   "first_close": 138.635,
+   "rank": 1,
+   "state": "missed: broke out before the bot started"
+  },
+  {
+   "symbol": "LOW",
+   "rvol": 8.84,
+   "side": "long",
+   "level": 216.52,
+   "atr": 7.3286,
+   "stop_dist": 0.7329,
+   "first_open": 212.25,
+   "first_close": 215.795,
+   "rank": 2,
+   "state": "missed: broke out before the bot started"
+  },
+  {
+   "symbol": "COF",
+   "rvol": 8.79,
+   "side": "long",
+   "level": 186.96,
+   "atr": 6.9937,
+   "stop_dist": 0.6994,
+   "first_open": 186.33,
+   "first_close": 186.89,
+   "rank": 3
+  },
+  {
+   "symbol": "TGT",
+   "rvol": 6.52,
+   "side": "long",
+   "level": 165.68,
+   "atr": 5.4412,
+   "stop_dist": 0.5441,
+   "first_open": 161.82,
+   "first_close": 163.895,
+   "rank": 4,
+   "state": "missed: broke out before the bot started"
+  },
+  {
+   "symbol": "CL",
+   "rvol": 6.11,
+   "side": "long",
+   "level": 99.11,
+   "atr": 2.3621,
+   "stop_dist": 0.2362,
+   "first_open": 98.84,
+   "first_close": 99.05,
+   "rank": 5,
+   "state": "entered",
+   "detect_price": 99.12,
+   "notional": 19923.120000000003,
+   "detect_time": "11:52"
+  },
+  {
+   "symbol": "EXPD",
+   "rvol": 6.05,
+   "side": "long",
+   "level": 196.87,
+   "atr": 6.1343,
+   "stop_dist": 0.6134,
+   "first_open": 191.65,
+   "first_close": 195.97,
+   "rank": 6
+  },
+  {
+   "symbol": "TXT",
+   "rvol": 5.64,
+   "side": "short",
+   "level": 83.44,
+   "atr": 3.4307,
+   "stop_dist": 0.3431,
+   "first_open": 86.315,
+   "first_close": 83.89,
+   "rank": 7,
+   "state": "missed: broke out before the bot started"
+  },
+  {
+   "symbol": "TTWO",
+   "rvol": 3.8,
+   "side": "long",
+   "level": 220.36,
+   "atr": 12.0264,
+   "stop_dist": 1.2026,
+   "first_open": 212.37,
+   "first_close": 213.125,
+   "rank": 8,
+   "state": "entered",
+   "detect_price": 220.59,
+   "notional": 19853.1,
+   "detect_time": "11:32"
+  },
+  {
+   "symbol": "TFC",
+   "rvol": 3.66,
+   "side": "short",
+   "level": 48.17,
+   "atr": 1.2251,
+   "stop_dist": 0.1225,
+   "first_open": 48.335,
+   "first_close": 48.305,
+   "rank": 9,
+   "state": "missed: broke out before the bot started"
+  },
+  {
+   "symbol": "ADM",
+   "rvol": 3.55,
+   "side": "short",
+   "level": 67.61,
+   "atr": 2.1971,
+   "stop_dist": 0.2197,
+   "first_open": 68.63,
+   "first_close": 68.13,
+   "rank": 10,
+   "state": "entered",
+   "detect_price": 67.645,
+   "notional": 19955.274999999998,
+   "detect_time": "11:21"
+  },
+  {
+   "symbol": "TSCO",
+   "rvol": 3.21,
+   "side": "short",
+   "level": 37.65,
+   "atr": 1.48,
+   "stop_dist": 0.148,
+   "first_open": 38.055,
+   "first_close": 38.04,
+   "rank": 11
+  },
+  {
+   "symbol": "D",
+   "rvol": 2.87,
+   "side": "long",
+   "level": 67.11,
+   "atr": 1.405,
+   "stop_dist": 0.1405,
+   "first_open": 66.82,
+   "first_close": 67.08,
+   "rank": 12,
+   "state": "missed: broke out before the bot started"
+  },
+  {
+   "symbol": "CRH",
+   "rvol": 2.86,
+   "side": "long",
+   "level": 90.52,
+   "atr": 3.8336,
+   "stop_dist": 0.3834,
+   "first_open": 89.6,
+   "first_close": 90.365,
+   "rank": 13,
+   "state": "missed: broke out before the bot started"
+  },
+  {
+   "symbol": "MRSH",
+   "rvol": 2.84,
+   "side": "long",
+   "level": 204.54,
+   "atr": 4.9507,
+   "stop_dist": 0.4951,
+   "first_open": 204.07,
+   "first_close": 204.38,
+   "rank": 14,
+   "state": "missed: broke out before the bot started"
+  },
+  {
+   "symbol": "KR",
+   "rvol": 2.74,
+   "side": "long",
+   "level": 69.92,
+   "atr": 1.8657,
+   "stop_dist": 0.1866,
+   "first_open": 69.915,
+   "first_close": 69.92,
+   "rank": 15,
+   "state": "missed: broke out before the bot started"
+  },
+  {
+   "symbol": "DASH",
+   "rvol": 2.68,
+   "side": "long",
+   "level": 166.0,
+   "atr": 10.198,
+   "stop_dist": 1.0198,
+   "first_open": 164.965,
+   "first_close": 166.0,
+   "rank": 16,
+   "state": "entered",
+   "detect_price": 166.02,
+   "notional": 19922.4,
+   "detect_time": "12:01"
+  },
+  {
+   "symbol": "NKE",
+   "rvol": 2.67,
+   "side": "long",
+   "level": 35.62,
+   "atr": 1.5914,
+   "stop_dist": 0.1591,
+   "first_open": 35.455,
+   "first_close": 35.53,
+   "rank": 17,
+   "state": "missed: broke out before the bot started"
+  },
+  {
+   "symbol": "ROST",
+   "rvol": 2.63,
+   "side": "long",
+   "level": 225.51,
+   "atr": 8.2379,
+   "stop_dist": 0.8238,
+   "first_open": 224.55,
+   "first_close": 225.14,
+   "rank": 18,
+   "state": "missed: broke out before the bot started"
+  },
+  {
+   "symbol": "CCI",
+   "rvol": 2.59,
+   "side": "short",
+   "level": 82.95,
+   "atr": 2.645,
+   "stop_dist": 0.2645,
+   "first_open": 83.25,
+   "first_close": 83.01,
+   "rank": 19,
+   "state": "missed: broke out before the bot started"
+  },
+  {
+   "symbol": "FE",
+   "rvol": 2.59,
+   "side": "long",
+   "level": 47.28,
+   "atr": 0.7441,
+   "stop_dist": 0.0744,
+   "first_open": 46.875,
+   "first_close": 47.215,
+   "rank": 20,
+   "state": "missed: broke out before the bot started"
+  }
+ ],
+ "events": [
+  {
+   "time": "11:21",
+   "symbol": "TJX",
+   "event": "skipped: broke out before the bot started",
+   "price": 143.33
+  },
+  {
+   "time": "11:21",
+   "symbol": "LOW",
+   "event": "skipped: broke out before the bot started",
+   "price": 218.37
+  },
+  {
+   "time": "11:21",
+   "symbol": "TGT",
+   "event": "skipped: broke out before the bot started",
+   "price": 167.255
+  },
+  {
+   "time": "11:21",
+   "symbol": "TXT",
+   "event": "skipped: broke out before the bot started",
+   "price": 82.25
+  },
+  {
+   "time": "11:21",
+   "symbol": "TFC",
+   "event": "skipped: broke out before the bot started",
+   "price": 47.98
+  },
+  {
+   "time": "11:21",
+   "symbol": "D",
+   "event": "skipped: broke out before the bot started",
+   "price": 67.315
+  },
+  {
+   "time": "11:21",
+   "symbol": "CRH",
+   "event": "skipped: broke out before the bot started",
+   "price": 91.92
+  },
+  {
+   "time": "11:21",
+   "symbol": "MRSH",
+   "event": "skipped: broke out before the bot started",
+   "price": 204.6
+  },
+  {
+   "time": "11:21",
+   "symbol": "KR",
+   "event": "skipped: broke out before the bot started",
+   "price": 70.0
+  },
+  {
+   "time": "11:21",
+   "symbol": "NKE",
+   "event": "skipped: broke out before the bot started",
+   "price": 36.42
+  },
+  {
+   "time": "11:21",
+   "symbol": "ROST",
+   "event": "skipped: broke out before the bot started",
+   "price": 226.975
+  },
+  {
+   "time": "11:21",
+   "symbol": "CCI",
+   "event": "skipped: broke out before the bot started",
+   "price": 82.55
+  },
+  {
+   "time": "11:21",
+   "symbol": "FE",
+   "event": "skipped: broke out before the bot started",
+   "price": 47.415
+  },
+  {
+   "time": "11:21",
+   "symbol": "ADM",
+   "event": "entry order sell market",
+   "price": 67.645,
+   "aimed": 67.61,
+   "qty": 295
+  },
+  {
+   "time": "11:21",
+   "symbol": "ADM",
+   "event": "entry filled",
+   "price": 67.609255,
+   "qty": 295,
+   "stop": 67.83,
+   "aimed": 67.61,
+   "slippage_pct": 0.0011
+  },
+  {
+   "time": "11:32",
+   "symbol": "TTWO",
+   "event": "entry order buy market",
+   "price": 220.59,
+   "aimed": 220.36,
+   "qty": 90
+  },
+  {
+   "time": "11:32",
+   "symbol": "TTWO",
+   "event": "entry filled",
+   "price": 220.68,
+   "qty": 90,
+   "stop": 219.48,
+   "aimed": 220.36,
+   "slippage_pct": 0.1452
+  },
+  {
+   "time": "11:52",
+   "symbol": "CL",
+   "event": "entry order buy market",
+   "price": 99.12,
+   "aimed": 99.11,
+   "qty": 201
+  },
+  {
+   "time": "11:52",
+   "symbol": "CL",
+   "event": "entry filled",
+   "price": 99.17,
+   "qty": 201,
+   "stop": 98.93,
+   "aimed": 99.11,
+   "slippage_pct": 0.0605
+  },
+  {
+   "time": "12:01",
+   "symbol": "DASH",
+   "event": "entry order buy market",
+   "price": 166.02,
+   "aimed": 166.0,
+   "qty": 120
+  },
+  {
+   "time": "12:01",
+   "symbol": "DASH",
+   "event": "entry filled",
+   "price": 166.1905,
+   "qty": 120,
+   "stop": 165.17,
+   "aimed": 166.0,
+   "slippage_pct": 0.1148
+  },
+  {
+   "time": "12:01",
+   "symbol": "CL",
+   "event": "stop moved to breakeven",
+   "price": 99.415,
+   "stop": 99.17
+  },
+  {
+   "time": "12:13",
+   "symbol": "DASH",
+   "event": "stop moved to breakeven",
+   "price": 167.92,
+   "stop": 166.19
+  }
+ ],
+ "dry_run": false,
+ "equity_at_start": 100000.0
+}

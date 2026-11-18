@@ -1,0 +1,61 @@
+2026-11-18 11:19:57 ET  INFO     ---- Day trader 2026-11-18 phase day (dry_run=False); entries until 15:30, flat at 15:55 ----
+2026-11-18 11:21:41 ET  INFO     Prepared 503 stocks before the open
+2026-11-18 11:21:43 ET  INFO     Stocks in play for 2026-11-18: TJX(l,9.65x), LOW(l,8.84x), COF(l,8.79x), TGT(l,6.52x), CL(l,6.11x), EXPD(l,6.05x), TXT(s,5.64x), TTWO(l,3.8x), TFC(s,3.66x), ADM(s,3.55x), TSCO(s,3.21x), D(l,2.87x), CRH(l,2.86x), MRSH(l,2.84x), KR(l,2.74x), DASH(l,2.68x), NKE(l,2.67x), ROST(l,2.63x), CCI(s,2.59x), FE(l,2.59x)
+2026-11-18 11:21:43 ET  INFO     Late start: TJX already past its level (143.33 vs 138.67), skipped
+2026-11-18 11:21:43 ET  INFO     Late start: LOW already past its level (218.37 vs 216.52), skipped
+2026-11-18 11:21:43 ET  INFO     Late start: TGT already past its level (167.25 vs 165.68), skipped
+2026-11-18 11:21:43 ET  INFO     Late start: TXT already past its level (82.25 vs 83.44), skipped
+2026-11-18 11:21:43 ET  INFO     Late start: TFC already past its level (47.98 vs 48.17), skipped
+2026-11-18 11:21:43 ET  INFO     Late start: D already past its level (67.31 vs 67.11), skipped
+2026-11-18 11:21:43 ET  INFO     Late start: CRH already past its level (91.92 vs 90.52), skipped
+2026-11-18 11:21:43 ET  INFO     Late start: MRSH already past its level (204.60 vs 204.54), skipped
+2026-11-18 11:21:43 ET  INFO     Late start: KR already past its level (70.00 vs 69.92), skipped
+2026-11-18 11:21:43 ET  INFO     Late start: NKE already past its level (36.42 vs 35.62), skipped
+2026-11-18 11:21:43 ET  INFO     Late start: ROST already past its level (226.97 vs 225.51), skipped
+2026-11-18 11:21:43 ET  INFO     Late start: CCI already past its level (82.55 vs 82.95), skipped
+2026-11-18 11:21:43 ET  INFO     Late start: FE already past its level (47.41 vs 47.28), skipped
+2026-11-18 11:21:43 ET  INFO     Breakout: sell ADM x295 at market (level 67.61, last 67.64, rank 10, rvol 3.5)
+2026-11-18 11:21:47 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"a7fb5b94-49b2-47f8-9558-2ab54aaaad41","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-18 11:21:50 ET  INFO     Entry filled: short ADM x295 @ 67.61 -> stop 67.83
+2026-11-18 11:32:21 ET  INFO     Breakout: buy TTWO x90 at market (level 220.36, last 220.59, rank 8, rvol 3.8)
+2026-11-18 11:32:25 ET  INFO     Entry filled: long TTWO x90 @ 220.68 -> stop 219.48
+2026-11-18 11:52:25 ET  INFO     Breakout: buy CL x201 at market (level 99.11, last 99.12, rank 5, rvol 6.1)
+2026-11-18 11:52:29 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"c49204da-eeb6-4820-9fba-46a58aaf6617","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-18 11:52:32 ET  INFO     Entry filled: long CL x201 @ 99.17 -> stop 98.93
+2026-11-18 12:01:04 ET  INFO     Breakout: buy DASH x120 at market (level 166.00, last 166.02, rank 16, rvol 2.7)
+2026-11-18 12:01:07 ET  INFO     Entry filled: long DASH x120 @ 166.19 -> stop 165.17
+2026-11-18 12:01:17 ET  INFO     Breakeven: long CL reached 99.41 (+1R); stop moved to 99.17
+2026-11-18 12:13:07 ET  INFO     Breakeven: long DASH reached 167.21 (+1R); stop moved to 166.19
+2026-11-18 15:00:35 ET  INFO     ---- Day trader 2026-11-18 phase close (dry_run=False); entries until 15:30, flat at 15:55 ----
+2026-11-18 15:55:08 ET  ERROR    Day trader failed: {"available":"0","code":40310000,"existing_qty":"120","held_for_orders":"120","message":"insufficient qty available for order (requested: 120, available: 0)","related_orders":["67750068-7c87-45c6-92c5-de9e1d461cf9"],"symbol":"DASH"}
+Traceback (most recent call last):
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 201, in _one_request
+    response.raise_for_status()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/requests/models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/sip_bot.py", line 650, in main
+    run(a.phase, a.dry_run or config.SIP_DRY_RUN, a.day, a.minutes)
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/sip_bot.py", line 632, in run
+    flatten(broker, day, since, plan, t)
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/sip_bot.py", line 493, in flatten
+    broker.market_order(sym, int(abs(q)), side, pre + "x-" + sym)
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/sip_bot.py", line 173, in market_order
+    return self.c.submit_order(MarketOrderRequest(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 243, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 210, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"available":"0","code":40310000,"existing_qty":"120","held_for_orders":"120","message":"insufficient qty available for order (requested: 120, available: 0)","related_orders":["67750068-7c87-45c6-92c5-de9e1d461cf9"],"symbol":"DASH"}
