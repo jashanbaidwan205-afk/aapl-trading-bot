@@ -10,7 +10,7 @@ on:
       test:
         description: "Which backtest"
         type: choice
-        options: [daytrade, orb, both, plugin, tjr]
+        options: [daytrade, orb, both, plugin, tjr, commodities]
         default: daytrade
       years:
         description: "Years of history to test"
@@ -59,6 +59,7 @@ jobs:
           if [ "$test" = "daytrade" ] || [ "$test" = "both" ]; then python backtest_daytrade.py --years "$years" $([ "$budget" != "100" ] && echo --cash "$budget"); fi
           if [ "$test" = "plugin" ] || [ "$test" = "both" ]; then python backtest_plugin.py --years "$years" --budget "$budget" --max-trades "$max_trades"; fi
           if [ "$test" = "tjr" ] || [ "$test" = "both" ]; then python backtest_tjr.py --years "$years"; fi
+          if [ "$test" = "commodities" ] || [ "$test" = "both" ]; then python backtest_commodities.py --years "$years"; fi
           echo "Backtest took $(( $(date +%s) - start )) seconds"
 
       - name: Save price bars for next time
@@ -77,4 +78,5 @@ jobs:
             backtest_daytrade_results/
             backtest_plugin_results/
             backtest_tjr_results/
+            backtest_commodities_results/
           retention-days: 30
