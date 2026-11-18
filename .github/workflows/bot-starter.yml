@@ -1,0 +1,97 @@
+name: Bot starter
+
+# Starts both day traders every weekday at 9:12 AM New York, with no PC needed.
+# GitHub's own cron schedules have been unreliable for this repo, so this workflow keeps
+# itself going instead: each run waits (at most ~5.5 hours, under GitHub's 6-hour job limit),
+# starts the bots when 9:12 AM arrives, then starts the next run of itself. GitHub allows a
+# workflow to start another workflow with workflow_dispatch.
+# Backups: the cron lines below (if GitHub ever fires them) and the PC's 9:10 AM task in the
+# Claude app; every starter checks first, so the bots are never started twice in a day.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "3 13 * * 1-5"    # ~8:03 AM New York (standard time) / 9:03 AM (daylight time)
+    - cron: "3 14 * * 1-5"
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  wait-and-start:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Wait, then start the bots
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        shell: python3 {0}
+        run: |
+          import json, os, subprocess, sys, time
+          from datetime import datetime, timedelta
+          from zoneinfo import ZoneInfo
+
+          NY = ZoneInfo("America/New_York")
+          START_AT = (9, 12)            # bots prepare before 9:35, so any start 9:05-9:40 works
+          LATEST = (9, 40)              # later than this a start would be too late for the day
+          MAX_WAIT = 5.5 * 3600         # stay under GitHub's 6-hour job limit
+          BOTS = ["sip-bot.yml", "small-bot.yml"]
+
+          def gh(*args):
+              r = subprocess.run(["gh", *args, "--repo", os.environ["REPO"]], capture_output=True, text=True)
+              if r.returncode:
+                  print("gh", *args, "->", r.stderr.strip())
+              return r
+
+          def runs(wf):
+              r = gh("run", "list", "--workflow", wf, "-L", "20", "--json", "databaseId,status,createdAt,event")
+              return json.loads(r.stdout or "[]")
+
+          # Only one starter may be waiting at a time (a cron backup must not start a second chain).
+          # Wait 90 s first so the run that started this one has finished.
+          time.sleep(90)
+          others = [x for x in runs("bot-starter.yml")
+                    if str(x["databaseId"]) != os.environ["RUN_ID"]
+                    and x["status"] in ("in_progress", "queued", "waiting", "pending", "requested")]
+          if others:
+              print("Another starter is already waiting:", [x["databaseId"] for x in others], "- exiting.")
+              sys.exit(0)
+
+          def next_start(now):
+              d = now.date()
+              while True:
+                  t = datetime(d.year, d.month, d.day, *START_AT, tzinfo=NY)
+                  if d.weekday() < 5 and t > now - timedelta(minutes=LATEST[1] - START_AT[1]):
+                      return t
+                  d += timedelta(days=1)
+
+          def start_bots(now):
+              today = now.strftime("%Y-%m-%d")
+              for wf in BOTS:
+                  today_runs = [x for x in runs(wf) if datetime.fromisoformat(x["createdAt"].replace("Z", "+00:00"))
+                                .astimezone(NY).strftime("%Y-%m-%d") == today and x["status"] != "completed"]
+                  if today_runs:
+                      print(f"{wf}: already running today ({today_runs[0]['databaseId']})")
+                      continue
+                  r = gh("workflow", "run", wf, "--ref", "main", "-f", "dry_run=false", "-f", "plan_only=false")
+                  print(f"{wf}: {'started' if r.returncode == 0 else 'FAILED to start'} at {now:%H:%M} New York")
+
+          now = datetime.now(NY)
+          target = next_start(now)
+          wait = (target - now).total_seconds()
+          print(f"Now {now:%a %Y-%m-%d %H:%M} New York; next start {target:%a %Y-%m-%d %H:%M} ({wait / 3600:.1f} h)")
+          if wait > MAX_WAIT:
+              time.sleep(MAX_WAIT)
+          else:
+              time.sleep(max(0, wait))
+              now = datetime.now(NY)
+              if now.weekday() < 5 and (now.hour, now.minute) <= LATEST:
+                  start_bots(now)
+              else:
+                  print("Woke too late to start the bots today")
+          # keep the chain going: the next run waits for the next start
+          r = gh("workflow", "run", "bot-starter.yml", "--ref", "main")
+          print("Next starter:", "queued" if r.returncode == 0 else "FAILED")
+          sys.exit(r.returncode)
