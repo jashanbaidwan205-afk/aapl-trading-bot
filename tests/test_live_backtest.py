@@ -91,5 +91,29 @@ class BreakevenStopTests(unittest.TestCase):
         self.assertAlmostEqual(px, 99.0 * (1 - dt.S["SLIPPAGE_PCT"] / 100))
 
 
+
+class SmallAccountTests(unittest.TestCase):
+    def run_small(self, fractional):
+        saved, cash = dict(dt.S), dt.START_CASH
+        dt.START_CASH = 1_000.0
+        dt.S.update(FRACTIONAL=fractional, RISK_PCT=1.0, MAX_POS_PCT=20.0)
+        try:
+            b = day_bars([(300, 301, 299.5, 300.8), (300.8, 302, 300.8, 301.9), (301.9, 303, 301.8, 302.8)])
+            t = {"side": "long", "k": 1, "entry_raw": 301.0, "stop": 300.0, "target": None, "same_bar_target": False}
+            trades, *_ = dt.simulate([DAY], {DAY: [("09:35", 1, "AAA", t)]}, {("AAA", DAY): b}, 20, {DAY: 1000.0}, 0.0)
+        finally:
+            dt.S.clear(); dt.S.update(saved)
+            dt.START_CASH = cash
+        return trades
+
+    def test_whole_shares_cannot_buy_a_300_dollar_stock_with_200(self):
+        self.assertEqual(self.run_small(False), [])
+
+    def test_fractional_shares_buy_20_percent(self):
+        trades = self.run_small(True)
+        self.assertEqual(len(trades), 1)
+        self.assertAlmostEqual(trades[0]["shares"] * trades[0]["entry"], 200.0, delta=0.1)   # 20% of $1,000
+
+
 if __name__ == "__main__":
     unittest.main()

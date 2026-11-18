@@ -439,9 +439,15 @@ def simulate(days, cands_by_day, bars_by, max_trades, spy, withdraw_pct, flatten
             risk = (entry - t["stop"]) if long else (t["stop"] - entry)
             if risk <= 0:
                 continue
-            qty = math.floor(min(equity * S["RISK_PCT"] / 100 / risk, equity * S["MAX_POS_PCT"] / 100 / entry))
-            if qty < 1:
-                continue
+            qty = min(equity * S["RISK_PCT"] / 100 / risk, equity * S["MAX_POS_PCT"] / 100 / entry)
+            if S.get("FRACTIONAL"):
+                qty = math.floor(qty * 10_000) / 10_000          # Alpaca allows fractional shares
+                if qty * entry < 1:
+                    continue
+            else:
+                qty = math.floor(qty)
+                if qty < 1:
+                    continue
             if sum(x["entry"] * x["shares"] for x in open_t) + qty * entry > equity * S["MAX_INVESTED_PCT"] / 100:
                 continue
             b = bars_by[(s, d)]
@@ -534,6 +540,22 @@ def main() -> None:
     a = ap.parse_args()
     if a.cash:
         START_CASH = a.cash
+    if START_CASH < 25_000:
+        # Small-account versions of the live rules. A real account this small is a cash account:
+        # no short selling (and fractional shares cannot be shorted at Alpaca).
+        STRATEGIES.update({
+            "small_long": ("Small account: current rules, long only, whole shares", 20),
+            "small_frac": ("Small account: current rules, long only, fractional shares", 20),
+            "small_frac_big": ("Small account: long only, fractional shares, up to 50% per stock and 100% in all", 20),
+            "small_frac_old": ("Small account: Nov 17 rules (10% per stock), long only, fractional shares", 20),
+        })
+        LIVE_TWEAKS.update({
+            "small_long": dict(LIVE_TWEAKS["sip_live_combo"], LONG_ONLY=True),
+            "small_frac": dict(LIVE_TWEAKS["sip_live_combo"], LONG_ONLY=True, FRACTIONAL=True),
+            "small_frac_big": dict(LIVE_TWEAKS["sip_live_combo"], LONG_ONLY=True, FRACTIONAL=True,
+                                   MAX_POS_PCT=50.0, CAP_PCT=100.0),
+            "small_frac_old": {"LONG_ONLY": True, "FRACTIONAL": True},
+        })
 
     symbols = orb.sp500_symbols()
     print(f"S&P 500 list: {len(symbols)} stocks")
@@ -570,9 +592,11 @@ def main() -> None:
                 saved = dict(S)
                 tw = dict(LIVE_TWEAKS[name])
                 top, min_rv = tw.pop("TOP", S["TOP_SIP"]), tw.pop("MIN_RVOL", S["MIN_RVOL_SIP"])
+                long_only, cap = tw.pop("LONG_ONLY", False), tw.pop("CAP_PCT", None)
                 S.update(tw)
-                S["MAX_INVESTED_PCT"] = getattr(config, "SIP_MAX_INVESTED_PCT", saved["MAX_INVESTED_PCT"])
-                picks = {d: [c for c in cs if c[1] <= top and c[3]["rvol"] >= min_rv] for d, cs in cands["sip"].items()}
+                S["MAX_INVESTED_PCT"] = cap or getattr(config, "SIP_MAX_INVESTED_PCT", saved["MAX_INVESTED_PCT"])
+                picks = {d: [c for c in cs if c[1] <= top and c[3]["rvol"] >= min_rv
+                             and (not long_only or c[3]["side"] == "long")] for d, cs in cands["sip"].items()}
                 try:
                     trades, eq, months, withdrawn = simulate(days, picks, bars_by, max_trades, spy, wd,
                                                              flatten_at=LIVE_FLATTEN_AT)
