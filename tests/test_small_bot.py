@@ -146,5 +146,18 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual(made[0].orders, [])
 
 
+
+class HistoryTests(unittest.TestCase):
+    def test_record_day_adds_and_replaces(self):
+        plan = {"date": DAY, "equity_at_start": 1000.0, "dry_run": False,
+                "events": [{"event": "entry filled"}, {"event": "entry filled"}, {"event": "stop moved to breakeven"}]}
+        h = small_bot.record_day([{"date": "2026-11-18", "equity_end": 1000.0}], plan, 1012.345)
+        self.assertEqual(h[-1], {"date": DAY, "equity_start": 1000.0, "equity_end": 1012.35, "entries": 2,
+                                 "stops_moved": 1, "dry_run": False, "pnl": 12.35})
+        h2 = small_bot.record_day(h, plan, 1005.0)                 # the same day again replaces its row
+        self.assertEqual([r["date"] for r in h2], ["2026-11-18", DAY])
+        self.assertEqual(h2[-1]["pnl"], 5.0)
+
+
 if __name__ == "__main__":
     unittest.main()

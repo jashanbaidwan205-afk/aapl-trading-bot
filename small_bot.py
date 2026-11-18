@@ -63,6 +63,7 @@ class C:
     MAX_ACCOUNT = 25_000.0      # refuse to trade a bigger account (wrong keys?)
     LOG_FILE = "small_bot.log"
     PLAN_FILE = "small_plan.json"
+    HISTORY_FILE = "small_history.json"   # one row per trading day, for the dashboard
 
 
 NY = ZoneInfo("America/New_York")
@@ -445,6 +446,18 @@ def manage(broker, picks: list[dict], day: str, t: datetime, since: datetime, al
                  p["level"], px, p["rank"], p["rvol"])
 
 
+def record_day(history: list[dict], plan: dict, equity_end: float) -> list[dict]:
+    """Add (or replace) today's row: account value at the start and end of the day, and the trades."""
+    events = plan.get("events", [])
+    row = {"date": plan.get("date"), "equity_start": round(float(plan.get("equity_at_start") or 0), 2),
+           "equity_end": round(float(equity_end), 2),
+           "entries": sum(1 for e in events if str(e.get("event", "")).startswith("entry filled")),
+           "stops_moved": sum(1 for e in events if e.get("event") == "stop moved to breakeven"),
+           "dry_run": bool(plan.get("dry_run"))}
+    row["pnl"] = round(row["equity_end"] - row["equity_start"], 2) if row["equity_start"] else None
+    return [r for r in history if r.get("date") != row["date"]] + [row]
+
+
 def long_only(picks: list[dict]) -> list[dict]:
     """A cash account cannot short: keep the up-moves, with their rank among all stocks in play."""
     return [p for p in picks if p["side"] == "long"]
@@ -668,6 +681,14 @@ def run(phase: str, dry_run: bool, past_day: str | None = None, test_minutes: in
         left = {s: p for s, p in broker.positions().items()
                 if s in {o["symbol"] for o in broker.orders_today(since) if o["cid"].startswith(prefix(day) + "e-")}}
         log.info("End of day: %s", "all day-trade positions closed" if not left else f"STILL OPEN: {left}")
+        try:
+            hp = BASE / C.HISTORY_FILE
+            history = json.loads(hp.read_text()) if hp.exists() else []
+            eq_end = broker.account()["equity"]
+            hp.write_text(json.dumps(record_day(history, plan, eq_end), indent=1))
+            log.info("Account at the close: $%.2f (started the day at $%.2f)", eq_end, plan.get("equity_at_start") or 0)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Could not save the day's history: %s", exc)
     save_plan(plan)
 
 
