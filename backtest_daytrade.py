@@ -81,8 +81,8 @@ STRATEGIES = {
     "vwap": ("VWAP pullback", 10),
     "gap": ("Gap and go", 10),
     "sip_old": ("Day trader bot, first rules (top-ranked orders hold room)", 20),
-    "sip_live": ("Day trader bot, new rules (first breakout gets the room)", 20),
-    "sip_live_slip10": ("Day trader bot, new rules, double slippage (0.10%)", 20),
+    "sip_live": ("Day trader bot, Nov 17 rules (first breakout gets the room)", 20),
+    "sip_live_slip10": ("Day trader bot, Nov 17 rules, double slippage (0.10%)", 20),
     # Ways to raise the day trader's returns, each changing one thing from the live rules
     "sip_live_risk1": ("Day trader, 1% risk per trade", 20),
     "sip_live_pos20": ("Day trader, 1% risk and up to 20% per stock", 20),
@@ -90,7 +90,7 @@ STRATEGIES = {
     "sip_live_rvol2": ("Day trader, opening volume at least 2x normal", 20),
     "sip_live_be1r": ("Day trader, stop moved to breakeven at +1R", 20),
     "sip_live_slip03": ("Day trader, cheaper fills (0.03% slippage)", 20),
-    "sip_live_combo": ("Day trader, 20% per stock + 2x volume + breakeven stop", 20),
+    "sip_live_combo": ("Day trader bot, current rules (20% per stock + 2x volume + breakeven stop)", 20),
 }
 # Changes from the live rules for each day trader version (all use the live 50% limit, 3:30 entry cut-off, 3:55 close)
 LIVE_TWEAKS = {
