@@ -36,7 +36,7 @@ import backtest_orb as orb
 
 BASE = Path(__file__).resolve().parent
 OUT = BASE / "backtest_commodities_results"
-MARKETS = {"GLD": "Gold (GLD)", "USO": "Oil (USO)"}
+MARKETS = {"GLD": "Gold (GLD)", "USO": "Oil (USO)", "GDX": "Gold miners (GDX)"}
 START_CASH = 100_000.0
 RISK_PCT, MAX_POS_PCT, SLIP_PCT = 1.0, 20.0, 0.05
 FLATTEN_AT, ENTRY_UNTIL = "15:55", "15:30"
@@ -95,17 +95,20 @@ def day_signal(v, b, atr, prev_close, rvol):
     if v["method"] == "orb":
         if rvol is None or not np.isfinite(rvol) or rvol < v["min_rvol"]:
             return None
-        o, c = b.open[0], b.close[0]
+        nb = v.get("or_bars", 1)
+        if len(b) <= nb:
+            return None
+        o, c = b.open[0], b.close[nb - 1]
         if c == o:
             return None
         side = "long" if c > o else "short"
-        level = b.high[0] if side == "long" else b.low[0]
-        hit = (b.high[1:] >= level) if side == "long" else (b.low[1:] <= level)
-        hit &= b.hm[1:] < ENTRY_UNTIL
+        level = b.high[:nb].max() if side == "long" else b.low[:nb].min()
+        hit = (b.high[nb:] >= level) if side == "long" else (b.low[nb:] <= level)
+        hit &= b.hm[nb:] < ENTRY_UNTIL
         idx = np.flatnonzero(hit)
         if not len(idx):
             return None
-        k = int(idx[0]) + 1
+        k = int(idx[0]) + nb
         entry = max(level, b.open[k]) if side == "long" else min(level, b.open[k])
         d = v["stop_atr"] * atr
         return {"side": side, "k": k, "entry_raw": float(entry),
@@ -272,7 +275,7 @@ def halves(rows):
 
 def pick(results, method_min_trades=None):
     """Best first-half return among versions with enough first-half trades."""
-    method_min_trades = method_min_trades or {"orb": 15, "gap": 8, "trend": 1}
+    method_min_trades = method_min_trades or MIN_FIRST_HALF_TRADES
     ok = [r for r in results if r["first_half_trades"] >= method_min_trades[r["method"]]]
     return max(ok, key=lambda r: r["first_half_pct"]) if ok else None
 
@@ -299,13 +302,388 @@ def combine(parts, spy, settings):
     return rows
 
 
+# ---------------------------------------------------------------------------
+# More methods (Nov 18, 2026): the gold methods traders teach, plus ones with published evidence
+# ---------------------------------------------------------------------------
+# FOMC statement days (federalreserve.gov meeting calendar; the statement comes at 2:00 PM)
+FOMC_DAYS = {"2025-01-29", "2025-03-19", "2025-05-07", "2025-06-18", "2025-07-30", "2025-09-17", "2025-10-29",
+             "2025-12-10", "2026-01-28", "2026-03-18", "2026-04-29", "2026-06-17", "2026-07-29", "2026-09-16",
+             "2026-10-28", "2026-12-09"}
+
+
+def more_versions() -> list[dict]:
+    out = []
+    # --- 1. Trend following and pullbacks (daily): trade with the trend, enter on a dip to a moving average
+    for f, s in ((50, 200), (20, 100)):
+        for pe in (20, 50):
+            for r in (2.0, 3.0):
+                out.append({"method": "pullback", "fast": f, "slow": s, "pe": pe, "take_r": r,
+                            "name": f"pullback_{f}_{s}_ema{pe}_{r:g}r",
+                            "label": f"Trend pullback: {f}/{s}-day EMA trend, buy dips to the {pe}-day EMA (short the mirror), "
+                                     f"stop below the dip, target {r:g}R, at most 20 days"})
+    for ls in (False, True):
+        out.append({"method": "fib", "short": ls, "name": f"fib_{'ls' if ls else 'long'}",
+                    "label": "Fibonacci pullback: in a 50/200-day EMA trend, buy a 50-61.8% retracement of the last 20 days' "
+                             f"swing, stop at 78.6%, target the swing high{' (short the mirror)' if ls else ', long only'}"})
+    # --- 2. Breakouts and market structure (intraday)
+    for nb in (3, 6):
+        for be in (None, 1.0):
+            out.append({"method": "orb", "or_bars": nb, "stop_atr": 0.10, "be_r": be, "min_rvol": 0.0,
+                        "name": f"orb{5 * nb}_{'be' if be else 'nobe'}",
+                        "label": f"{5 * nb}-min opening range breakout, stop 0.1x ATR" + (", breakeven at +1R" if be else "")})
+    for kind in ("strict", "loose"):
+        out.append({"method": "sweep", "kind": kind, "name": f"sweep_{kind}",
+                    "label": "Liquidity sweep of yesterday's high/low, then structure shift and fair value gap entry "
+                             f"({'strict' if kind == 'strict' else 'looser'} rules), 2R target"})
+    # --- 3. Range trading (daily oscillators, only when there is no trend)
+    for osc, n, lo, hi in (("rsi", 2, 10, 90), ("rsi", 14, 30, 70), ("stoch", 14, 20, 80)):
+        for adx in (True, False):
+            out.append({"method": "range", "osc": osc, "n": n, "lo": lo, "hi": hi, "adx": adx,
+                        "name": f"range_{osc}{n}_{'adx' if adx else 'any'}",
+                        "label": f"Range trading: buy {osc.upper()}({n}) below {lo}, short above {hi}"
+                                 + (" when ADX < 20 (no trend)" if adx else " on any day")
+                                 + ", exit at 50, stop 2x ATR, at most 10 days"})
+    # --- 4. Macro and news
+    out.append({"method": "fomc_drift", "name": "fomc_drift", "fill": "close",
+                "label": "Fed days: hold from the close before each FOMC statement to the close on statement day"})
+    out.append({"method": "fomc_break", "be_r": None, "name": "fomc_break",
+                "label": "Fed days: trade the breakout of the 2:00-2:30 PM range after the FOMC statement, closed by 3:55"})
+    for short in (False, True):
+        out.append({"method": "dollar", "short": short, "name": f"dollar_{'ls' if short else 'long'}",
+                    "label": "Dollar filter: in a 20/50-day uptrend while the dollar (UUP) is below its 50-day average"
+                             + (" (short when both reverse)" if short else ", long only")})
+    for drop in (1.5, 2.5):
+        out.append({"method": "haven", "drop": drop, "fill": "close", "name": f"haven_{drop:g}",
+                    "label": f"Safe haven: buy at the close when the S&P 500 (SPY) falls {drop:g}%+ in a day, hold 5 days"})
+    # --- 5. Methods with published evidence
+    for flt in (False, True):
+        for slip in (0.05, 0.01):
+            out.append({"method": "overnight", "filter": flt, "slip": slip, "fill": "close",
+                        "name": f"overnight_{'trend' if flt else 'all'}_s{slip:g}",
+                        "label": "Overnight drift: buy at the close, sell at the next open"
+                                 + (" (only above the 50-day average)" if flt else " every day")
+                                 + f", {slip:g}% slippage" + (" (closing/opening auction orders)" if slip < 0.05 else "")})
+    for months in (3, 6, 12):
+        out.append({"method": "tsmom", "months": months, "fill": "close", "name": f"tsmom_{months}m",
+                    "label": f"Time-series momentum: at each month end, hold if up over the last {months} months, else cash"})
+    out.append({"method": "tsmom", "months": 0, "fill": "close", "name": "tsmom_10m_avg",
+                "label": "Monthly trend filter: at each month end, hold if above the 10-month average, else cash"})
+    out.append({"method": "preholiday", "fill": "close", "name": "preholiday",
+                "label": "Pre-holiday: buy at the close two sessions before a market holiday, sell at the close the day before"})
+    for n in (50, 100):
+        out.append({"method": "rotation", "n": n, "name": f"rotation_{n}",
+                    "label": f"Gold vs S&P 500: hold when the gold/SPY price ratio is above its {n}-day average, else cash"})
+    return out
+
+
+MIN_FIRST_HALF_TRADES = {"orb": 15, "gap": 8, "trend": 1, "pullback": 3, "fib": 2, "sweep": 5, "range": 3,
+                         "fomc_drift": 2, "fomc_break": 2, "dollar": 1, "haven": 2, "overnight": 20, "tsmom": 1,
+                         "preholiday": 2, "rotation": 1}
+
+
+def indicators(daily, sym):
+    o, h, l, c = (daily[f][sym].dropna() for f in ("Open", "High", "Low", "Close"))
+    h, l, o = h.reindex(c.index), l.reindex(c.index), o.reindex(c.index)
+    ema = lambda n: c.ewm(span=n, adjust=False).mean()  # noqa: E731
+    tr = pd.concat([h - l, (h - c.shift(1)).abs(), (l - c.shift(1)).abs()], axis=1).max(axis=1)
+    atr = tr.rolling(14).mean()
+
+    def rsi(n):
+        d = c.diff()
+        up = d.clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
+        dn = (-d.clip(upper=0)).ewm(alpha=1 / n, adjust=False).mean()
+        return 100 - 100 / (1 + up / dn.replace(0, np.nan))
+
+    stoch = (c - l.rolling(14).min()) / (h.rolling(14).max() - l.rolling(14).min()) * 100
+    upm, dnm = h.diff(), -l.diff()
+    pdm = pd.Series(np.where((upm > dnm) & (upm > 0), upm, 0.0), index=c.index)
+    ndm = pd.Series(np.where((dnm > upm) & (dnm > 0), dnm, 0.0), index=c.index)
+    atr_w = tr.ewm(alpha=1 / 14, adjust=False).mean()
+    pdi = 100 * pdm.ewm(alpha=1 / 14, adjust=False).mean() / atr_w
+    ndi = 100 * ndm.ewm(alpha=1 / 14, adjust=False).mean() / atr_w
+    adx = (100 * (pdi - ndi).abs() / (pdi + ndi)).ewm(alpha=1 / 14, adjust=False).mean()
+    spy = daily["Close"]["SPY"].reindex(c.index)
+    uup = daily["Close"]["UUP"].reindex(c.index).ffill() if "UUP" in daily["Close"] else pd.Series(np.nan, index=c.index)
+    return {"o": o, "h": h, "l": l, "c": c, "atr": atr, "ema": {n: ema(n) for n in (20, 50, 100, 200)},
+            "sma50": c.rolling(50).mean(), "rsi": {2: rsi(2), 14: rsi(14)}, "stoch": stoch, "adx": adx,
+            "spy": spy, "spy_ret": spy.pct_change() * 100, "uup": uup, "uup50": uup.rolling(50).mean(),
+            "ratio": c / spy}
+
+
+def decide(v, i, I, st):
+    """Called after day i's close. st holds the open position ("pos", "held" = days held).
+    Returns None (no change) or an order {"pos": -1/0/1, "stop", "take" or "take_r", "exit_at_open"}."""
+    c, h, l, atr = I["c"].iloc[i], I["h"].iloc[i], I["l"].iloc[i], I["atr"].iloc[i]
+    pos, m = st["pos"], v["method"]
+    if not np.isfinite(atr):
+        return None
+    if m == "pullback":
+        f, s, e = I["ema"][v["fast"]].iloc[i], I["ema"][v["slow"]].iloc[i], I["ema"][v["pe"]].iloc[i]
+        up, down = f > s, f < s
+        if (pos == 1 and (not up or st["held"] >= 20)) or (pos == -1 and (not down or st["held"] >= 20)):
+            return {"pos": 0}
+        if pos == 0 and up and l <= e < c:
+            return {"pos": 1, "stop": l - 0.5 * atr, "take_r": v["take_r"]}
+        if pos == 0 and down and h >= e > c:
+            return {"pos": -1, "stop": h + 0.5 * atr, "take_r": v["take_r"]}
+        return None
+    if m == "fib":
+        if i < 20:
+            return None
+        up = I["ema"][50].iloc[i] > I["ema"][200].iloc[i]
+        hi20, lo20 = I["h"].iloc[i - 20:i].max(), I["l"].iloc[i - 20:i].min()
+        rng = hi20 - lo20
+        if pos != 0:
+            return {"pos": 0} if st["held"] >= 20 else None
+        if up and l <= hi20 - 0.5 * rng and c >= hi20 - 0.618 * rng:
+            return {"pos": 1, "stop": hi20 - 0.786 * rng, "take": hi20}
+        if v["short"] and not up and h >= lo20 + 0.5 * rng and c <= lo20 + 0.618 * rng:
+            return {"pos": -1, "stop": lo20 + 0.786 * rng, "take": lo20}
+        return None
+    if m == "range":
+        x = I["rsi"][v["n"]].iloc[i] if v["osc"] == "rsi" else I["stoch"].iloc[i]
+        if (pos == 1 and (x >= 50 or st["held"] >= 10)) or (pos == -1 and (x <= 50 or st["held"] >= 10)):
+            return {"pos": 0}
+        if pos == 0 and (not v["adx"] or I["adx"].iloc[i] < 20):
+            if x < v["lo"]:
+                return {"pos": 1, "stop": c - 2 * atr}
+            if x > v["hi"]:
+                return {"pos": -1, "stop": c + 2 * atr}
+        return None
+    if m == "fomc_drift":
+        if pos:
+            return {"pos": 0}
+        nxt = I["c"].index[i + 1].strftime("%Y-%m-%d") if i + 1 < len(I["c"]) else None
+        return {"pos": 1} if nxt in FOMC_DAYS else None
+    if m == "dollar":
+        gu = I["ema"][20].iloc[i] > I["ema"][50].iloc[i]
+        du = I["uup"].iloc[i] > I["uup50"].iloc[i]
+        want = 1 if gu and not du else (-1 if v["short"] and not gu and du else 0)
+        return {"pos": want} if want != pos else None
+    if m == "haven":
+        if pos:
+            return {"pos": 0} if st["held"] >= 5 else None
+        return {"pos": 1} if I["spy_ret"].iloc[i] <= -v["drop"] else None
+    if m == "overnight":
+        ok = (not v["filter"]) or c > I["sma50"].iloc[i]
+        return {"pos": 1, "exit_at_open": True} if ok else None
+    if m == "tsmom":
+        idx = I["c"].index
+        if i + 1 < len(idx) and idx[i + 1].month == idx[i].month:
+            return None                                   # only at month end
+        if v["months"]:
+            past = I["c"].loc[:idx[i] - pd.DateOffset(months=v["months"])]
+            if past.empty:
+                return None
+            up = c > past.iloc[-1]
+        else:
+            mon = I["c"].loc[:idx[i]].resample("ME").last()
+            if len(mon) < 10:
+                return None
+            up = c > mon.iloc[-10:].mean()
+        want = 1 if up else 0
+        return {"pos": want} if want != pos else None
+    if m == "preholiday":
+        idx = I["c"].index
+        if pos:
+            return {"pos": 0}
+        if i + 2 < len(idx) and np.busday_count(idx[i + 1].date(), idx[i + 2].date()) > 1:
+            return {"pos": 1}                             # a weekday market holiday follows day i+1
+        return None
+    if m == "rotation":
+        r = I["ratio"]
+        avg = r.rolling(v["n"]).mean().iloc[i]
+        want = 1 if r.iloc[i] > avg else 0
+        return {"pos": want} if np.isfinite(avg) and want != pos else None
+    return None
+
+
+def run_daily(v, sym, days, ctx):
+    """Daily strategies. Orders go in at the next open, or in the same day's closing auction for
+    "fill": "close" methods; stops and targets are checked on each day's high and low (stop first)."""
+    slip = v.get("slip", SLIP_PCT) / 100
+    I = ctx["ind"][sym]
+    c_ser = I["c"]
+    pos_of = {d.strftime("%Y-%m-%d"): i for i, d in enumerate(c_ser.index)}
+    st = {"pos": 0, "held": 0, "qty": 0, "entry": 0.0, "entry_day": None, "entry_hm": None,
+          "stop": None, "take": None, "exit_at_open": False}
+    acct = {"cash": START_CASH}
+    trades, rows, pending = [], [], None
+
+    def size(px, stop):
+        eq = acct["cash"]
+        if stop is not None and abs(px - stop) > 0:
+            return math.floor(min(eq * RISK_PCT / 100 / abs(px - stop), eq * MAX_POS_PCT / 100 / px))
+        return math.floor(eq * MAX_POS_PCT / 100 / px)
+
+    def close_pos(d, px, why):
+        p = st["pos"]
+        fill = px * ((1 - slip) if p == 1 else (1 + slip))
+        pnl = (fill - st["entry"]) * st["qty"] * p
+        acct["cash"] += pnl
+        risk = abs(st["entry"] - st["stop"]) * st["qty"] if st["stop"] is not None else st["entry"] * st["qty"] * 0.02
+        trades.append({"day": st["entry_day"], "symbol": sym, "side": "long" if p == 1 else "short",
+                       "entry_hm": st["entry_hm"], "exit_hm": d, "shares": st["qty"], "entry": round(st["entry"], 2),
+                       "stop": None if st["stop"] is None else round(st["stop"], 2),
+                       "target": None if st["take"] is None else round(st["take"], 2),
+                       "exit": round(fill, 2), "exit_reason": why, "pnl": round(pnl, 2),
+                       "r_multiple": round(pnl / risk, 2) if risk else None})
+        st.update(pos=0, qty=0, held=0, stop=None, take=None, exit_at_open=False)
+
+    def open_pos(d, px, order, when):
+        p = order["pos"]
+        fill = px * ((1 + slip) if p == 1 else (1 - slip))
+        stop = order.get("stop")
+        if stop is not None and ((p == 1 and stop >= fill) or (p == -1 and stop <= fill)):
+            return                                        # the price already went through the stop
+        qty = size(fill, stop)
+        if qty < 1:
+            return
+        take = order.get("take")
+        if order.get("take_r") and stop is not None:
+            take = fill + order["take_r"] * (fill - stop) if p == 1 else fill - order["take_r"] * (stop - fill)
+        if take is not None and ((p == 1 and take <= fill) or (p == -1 and take >= fill)):
+            return                                        # the target is already behind the entry
+        st.update(pos=p, qty=qty, entry=fill, entry_day=d, entry_hm=when, stop=stop, take=take, held=0,
+                  exit_at_open=bool(order.get("exit_at_open")))
+
+    c = None
+    for d in days:
+        i = pos_of.get(d)
+        if i is None:
+            rows.append({"date": d, "equity": round(acct["cash"], 2), "trades": 0})
+            continue
+        o, h, l, c = (float(I[k].iloc[i]) for k in ("o", "h", "l", "c"))
+        n0 = len(trades)
+        # 1) the open: overnight exits, then orders decided at yesterday's close
+        if st["pos"] and st["exit_at_open"]:
+            close_pos(d, o, "open")
+        if pending is not None:
+            if st["pos"] and pending["pos"] != st["pos"]:
+                close_pos(d, o, "signal")
+            if pending["pos"] and not st["pos"]:
+                open_pos(d, o, pending, "09:30")
+            pending = None
+        # 2) during the day: a gap through the stop fills at the open; else stop first, then target
+        if st["pos"]:
+            p, sp, tk = st["pos"], st["stop"], st["take"]
+            fresh = st["entry_day"] == d and st["entry_hm"] == "16:00"
+            if not fresh:
+                if sp is not None and ((p == 1 and o <= sp) or (p == -1 and o >= sp)):
+                    close_pos(d, o, "stop")
+                elif sp is not None and ((p == 1 and l <= sp) or (p == -1 and h >= sp)):
+                    close_pos(d, sp, "stop")
+                elif tk is not None and ((p == 1 and h >= tk) or (p == -1 and l <= tk)):
+                    close_pos(d, max(tk, o) if p == 1 else min(tk, o), "target")
+        # 3) the close: decide; closing-auction methods trade now, the others at the next open
+        if st["pos"]:
+            st["held"] += 1
+        order = decide(v, i, I, st)
+        if order is not None:
+            if v.get("fill") == "close":
+                if st["pos"] and order["pos"] != st["pos"]:
+                    close_pos(d, c, "signal")
+                if order["pos"] and not st["pos"]:
+                    open_pos(d, c, order, "16:00")
+            else:
+                pending = order
+        eqv = acct["cash"] + (st["qty"] * (c - st["entry"]) * st["pos"] if st["pos"] else 0.0)
+        rows.append({"date": d, "equity": round(eqv, 2), "trades": len(trades) - n0})
+    if st["pos"] and c is not None:
+        p = st["pos"]
+        pnl = (c - st["entry"]) * st["qty"] * p
+        trades.append({"day": st["entry_day"], "symbol": sym, "side": "long" if p == 1 else "short",
+                       "entry_hm": st["entry_hm"], "exit_hm": "open", "shares": st["qty"], "entry": round(st["entry"], 2),
+                       "stop": None if st["stop"] is None else round(st["stop"], 2),
+                       "target": None if st["take"] is None else round(st["take"], 2), "exit": round(c, 2),
+                       "exit_reason": "still open", "pnl": round(pnl, 2), "r_multiple": None})
+    return trades, rows
+
+
+def run_intraday_more(v, sym, days, ctx):
+    """Liquidity sweeps (the TJR model on yesterday's high/low) and the FOMC 2:00-2:30 PM breakout."""
+    import backtest_tjr as tjr
+
+    slip = SLIP_PCT / 100
+    eq, trades, rows = START_CASH, [], []
+    for d in days:
+        b = ctx["bars"].get((sym, d))
+        t = None
+        if b is not None and len(b) > 20 and v["method"] == "sweep":
+            saved = dict(tjr.P)
+            tjr.P.update(tjr.STRICT if v["kind"] == "strict" else dict(tjr.STRICT, RECLAIM_BARS=3, MSS_BARS=24, FVG_ATR=0.10))
+            try:
+                df = pd.DataFrame({"hm": b.hm, "open": b.open, "high": b.high, "low": b.low, "close": b.close})
+                pools = {"low": [ctx["prev_low"][sym].get(d, np.nan)], "high": [ctx["prev_high"][sym].get(d, np.nan)]}
+                pools = {k: [x for x in xs if np.isfinite(x)] for k, xs in pools.items()}
+                for s_ in tjr.find_setups(df, pools):
+                    r = tjr.fill_and_exit(df, s_)
+                    if r:
+                        ehm, fill, xhm, xpx, why = r
+                        long = s_["side"] == "long"
+                        t = {"side": s_["side"], "entry_hm": ehm, "entry_raw": float(fill), "stop": float(s_["stop"]),
+                             "target": float(s_["target"]), "exit_hm": xhm,
+                             "exit_px": float(xpx) * ((1 - slip) if long else (1 + slip)) if why != "stop" else float(xpx),
+                             "why": why}
+                        break
+            finally:
+                tjr.P.clear()
+                tjr.P.update(saved)
+        elif b is not None and len(b) > 20 and v["method"] == "fomc_break" and d in FOMC_DAYS:
+            k0 = next((i for i in range(len(b)) if b.hm[i] >= "14:00"), None)
+            k1 = next((i for i in range(len(b)) if b.hm[i] >= "14:30"), None)
+            if k0 is not None and k1 is not None and k1 > k0:
+                hi, lo = float(b.high[k0:k1].max()), float(b.low[k0:k1].min())
+                for k in range(k1, len(b)):
+                    if b.hm[k] >= ENTRY_UNTIL:
+                        break
+                    side = "long" if b.high[k] >= hi else ("short" if b.low[k] <= lo else None)
+                    if side:
+                        entry = max(hi, b.open[k]) if side == "long" else min(lo, b.open[k])
+                        stop = lo if side == "long" else hi
+                        ex = day_exit(b, k, side, stop, None, float(entry), v.get("be_r"))
+                        if ex:
+                            t = {"side": side, "entry_hm": str(b.hm[k]), "entry_raw": float(entry), "stop": stop,
+                                 "target": None, "exit_hm": ex[0], "exit_px": ex[1], "why": ex[2]}
+                        break
+        n = 0
+        if t:
+            long = t["side"] == "long"
+            entry = t["entry_raw"] * ((1 + slip) if long else (1 - slip))
+            risk = (entry - t["stop"]) if long else (t["stop"] - entry)
+            qty = math.floor(min(eq * RISK_PCT / 100 / risk, eq * MAX_POS_PCT / 100 / entry)) if risk > 0 else 0
+            if qty >= 1:
+                xpx = t["exit_px"]
+                pnl = (xpx - entry) * qty if long else (entry - xpx) * qty
+                eq += pnl
+                n = 1
+                trades.append({"day": d, "symbol": sym, "side": t["side"], "entry_hm": t["entry_hm"], "exit_hm": t["exit_hm"],
+                               "shares": qty, "entry": round(entry, 2), "stop": round(t["stop"], 2),
+                               "target": None if t["target"] is None else round(t["target"], 2), "exit": round(xpx, 2),
+                               "exit_reason": t["why"], "pnl": round(pnl, 2), "r_multiple": round(pnl / (risk * qty), 2)})
+        rows.append({"date": d, "equity": round(eq, 2), "trades": n})
+    return trades, rows
+
+
+def runner(v):
+    m = v["method"]
+    if m == "trend":
+        return run_trend
+    if m in ("orb", "gap"):
+        return run_day_trades
+    if m in ("sweep", "fomc_break"):
+        return run_intraday_more
+    return run_daily
+
+
+
 def main():
     ap = argparse.ArgumentParser(description="Backtest gold and oil ETFs and pick each market's best method")
     ap.add_argument("--years", type=int, default=1)
     a = ap.parse_args()
 
     syms = list(MARKETS)
-    daily = orb.daily_data(syms + ["SPY"], a.years + 1)
+    daily = orb.daily_data(syms + ["SPY", "UUP"], a.years + 1)
     closes = daily["Close"]
     today = pd.Timestamp.now(tz=orb.NY).strftime("%Y-%m-%d")
     idx = [d for d in closes.index if d.strftime("%Y-%m-%d") < today]
@@ -316,8 +694,11 @@ def main():
     end = (pd.Timestamp(days[-1], tz=orb.NY) + pd.Timedelta(hours=23)).to_pydatetime()
     bars = orb.day_bars(orb.minute_bars(syms, start, end))
 
-    ctx = {"bars": bars, "daily": daily, "atr": {}, "prev_close": {}, "rvol": {}}
+    ctx = {"bars": bars, "daily": daily, "atr": {}, "prev_close": {}, "rvol": {}, "ind": {}, "prev_high": {}, "prev_low": {}}
     for s in syms:
+        ctx["ind"][s] = indicators(daily, s)
+        ctx["prev_high"][s] = {d.strftime("%Y-%m-%d"): float(x) for d, x in daily["High"][s].shift(1).items()}
+        ctx["prev_low"][s] = {d.strftime("%Y-%m-%d"): float(x) for d, x in daily["Low"][s].shift(1).items()}
         h, l, c = daily["High"][s], daily["Low"][s], daily["Close"][s]
         tr = pd.concat([h - l, (h - c.shift(1)).abs(), (l - c.shift(1)).abs()], axis=1).max(axis=1)
         atr = tr.rolling(14).mean().shift(1)          # known before the open
@@ -333,8 +714,8 @@ def main():
     grid, picked = [], {}
     for s in syms:
         res = []
-        for v in versions():
-            trades, rows = (run_trend if v["method"] == "trend" else run_day_trades)(v, s, days, ctx)
+        for v in versions() + more_versions():
+            trades, rows = runner(v)(v, s, days, ctx)
             first_pct, second_pct, mid_day = halves(rows)
             r = {"market": s, "version": v["name"], "label": v["label"], "method": v["method"],
                  "first_half_pct": first_pct, "second_half_pct": second_pct, "split_day": mid_day,
@@ -346,7 +727,7 @@ def main():
         best = pick(res)
         picked[s] = best
         print(f"\n== {MARKETS[s]}: {len(res)} versions ==")
-        for r in sorted(res, key=lambda r: -r["first_half_pct"])[:6]:
+        for r in sorted(res, key=lambda r: -r["first_half_pct"])[:10]:
             print(f"  {r['version']:28} first half {r['first_half_pct']:+7.2f}%  second half {r['second_half_pct']:+7.2f}%  "
                   f"year {r['full_year_pct']:+7.2f}%  trades {r['trades']}")
         if best:
@@ -361,7 +742,7 @@ def main():
         sr = summary_row(trades, rows, spy, f"{best['label']} on {s}; picked using only the first half of the year "
                                             f"(to {best['split_day']}): first half {best['first_half_pct']:+.2f}%, "
                                             f"second half (the honest test) {best['second_half_pct']:+.2f}%; "
-                                            f"1% risk per day trade, at most 20% of the account in the position, 0.05% slippage")
+                                            f"1% risk per trade with a stop, at most 20% of the account in the position, 0.05% slippage")
         sr.update(variant=var, strategy="commodities", label=f"{MARKETS[s]}: {best['label']}",
                   first_half_pct=best["first_half_pct"], second_half_pct=best["second_half_pct"])
         summ.append(sr)
@@ -372,7 +753,7 @@ def main():
 
     OUT.mkdir(exist_ok=True)
     meta = [{"label": "backtest_commodities.py", "value": Path(__file__).read_text(encoding="utf-8"), "type": "code", "lang": "python"},
-            {"label": "Input", "value": "Alpaca 5-minute bars and Yahoo Finance daily prices for GLD, USO and SPY"}]
+            {"label": "Input", "value": "Alpaca 5-minute bars and Yahoo Finance daily prices for GLD, USO, GDX, SPY and UUP; FOMC dates from federalreserve.gov"}]
     grid_rows = [{k: v for k, v in r.items() if k != "_data"} for r in grid]
     for fname, rows, m in (("cmd_summary.json", summ, meta), ("cmd_equity.json", eq_all, []),
                            ("cmd_months.json", months_all, []), ("cmd_trades.json", trades_all, []),
