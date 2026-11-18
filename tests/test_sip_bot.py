@@ -213,6 +213,22 @@ class EntryTests(EntryBase):
         self.assertTrue(all(o["status"] != "new" for o in self.b.orders if o["type"] == "stop"))
 
 
+class LateStartTests(EntryBase):
+    def test_picks_already_past_their_level_are_skipped(self):
+        plan = {"picks": self.p, "events": []}
+        q = quiet(self.p)
+        broke(q, self.p[0])                     # AAA long already above 100
+        broke(q, self.p[1])                     # BBB short already below 50
+        sip_bot.skip_late_breakouts(plan, q, T)
+        self.assertEqual(self.p[0]["state"], "missed: broke out before the bot started")
+        self.assertEqual(self.p[1]["state"], "missed: broke out before the bot started")
+        self.assertNotIn("state", self.p[2])
+        # a later breakout of a skipped stock does not trade; an untouched one still can
+        broke(q, self.p[2])
+        self.run_once(q)
+        self.assertEqual([o["symbol"] for o in self.entries()], ["CCC"])
+
+
 class SelectTests(unittest.TestCase):
     def test_select_ranks_filters_and_sides(self):
         bars = pd.DataFrame([

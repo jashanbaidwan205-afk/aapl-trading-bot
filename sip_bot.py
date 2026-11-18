@@ -422,6 +422,21 @@ def manage(broker, picks: list[dict], day: str, t: datetime, since: datetime, al
                  p["level"], px, p["rank"], p["rvol"])
 
 
+def skip_late_breakouts(plan: dict, quotes: dict, t: datetime):
+    """For a start after the open: picks already past their level broke out before the bot was
+    running, so entering now would buy far from the breakout. Only breakouts from now on count."""
+    for p in plan["picks"]:
+        q = quotes.get(p["symbol"])
+        if p.get("state") or not q:
+            continue
+        past = q["last"] >= p["level"] if p["side"] == "long" else q["last"] <= p["level"]
+        if past:
+            p["state"] = "missed: broke out before the bot started"
+            plan["events"].append({"time": hm(t), "symbol": p["symbol"], "event": "skipped: broke out before the bot started",
+                                   "price": q["last"]})
+            log.info("Late start: %s already past its level (%.2f vs %.2f), skipped", p["symbol"], q["last"], p["level"])
+
+
 def get_quotes(symbols: list[str], day: str) -> dict:
     """Latest trade plus the high/low of the current minute (IEX feed) for each symbol.
     Minute bars from before 9:35 are ignored: they belong to the first 5-minute candle."""
@@ -585,6 +600,8 @@ def run(phase: str, dry_run: bool, past_day: str | None = None, test_minutes: in
         crossover_orders = {o["symbol"] for o in broker.orders_today(since) if not o["cid"].startswith("sip-")}
         plan["picks"] = build_picks(broker, day, held | crossover_orders, prepared)
         plan["equity_at_start"] = broker.account()["equity"]
+        if phase == "day" and now_ny() > datetime.strptime(f"{day} 09:40", "%Y-%m-%d %H:%M").replace(tzinfo=NY):
+            skip_late_breakouts(plan, get_quotes([p["symbol"] for p in plan["picks"]], day), now_ny())
         save_plan(plan)
         if phase == "plan":
             return
