@@ -1,0 +1,11 @@
+[
+ {
+  "date": "2026-11-19",
+  "equity_start": 1000.0,
+  "equity_end": 997.82,
+  "entries": 4,
+  "stops_moved": 1,
+  "dry_run": false,
+  "pnl": -2.18
+ }
+]

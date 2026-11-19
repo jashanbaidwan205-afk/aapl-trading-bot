@@ -1,0 +1,20 @@
+2026-11-19 09:11:11 ET  INFO     ---- Day trader 2026-11-19 phase day (dry_run=False); entries until 15:30, flat at 15:55 ----
+2026-11-19 09:13:38 ET  INFO     Prepared 502 stocks before the open
+2026-11-19 09:35:06 ET  INFO     Stocks in play for 2026-11-19: HSY(s,22.14x), AMT(s,11.61x), WSM(l,8.89x), LNT(l,4.11x), OKTA(l,4.04x), TROW(s,4.04x), TTWO(l,4.0x), P(l,3.83x), Q(s,3.57x), WMT(l,3.56x), WDAY(l,3.48x), REG(s,3.43x), PANW(l,3.14x), D(l,3.04x), MRK(s,2.97x), GIS(s,2.89x), MCD(s,2.79x), WMB(l,2.55x), APA(l,2.48x), DIS(s,2.45x)
+2026-11-19 09:35:07 ET  INFO     Breakout: buy LNT x2.786 at market (level 71.78, last 71.78, rank 4, rvol 4.1)
+2026-11-19 09:35:07 ET  INFO     Breakout: buy P x1.8503 at market (level 108.07, last 108.09, rank 8, rvol 3.8)
+2026-11-19 09:35:07 ET  INFO     Breakout with no room: long WDAY @ 178.72 (limit full)
+2026-11-19 09:35:20 ET  INFO     Entry filled: long LNT x1 @ 71.73 -> stop 71.57
+2026-11-19 09:35:20 ET  INFO     Entry filled: long P x1.8503 @ 107.99 -> stop 106.98
+2026-11-19 09:35:27 ET  INFO     Breakout with no room: long WSM @ 246.51 (limit full)
+2026-11-19 09:35:47 ET  INFO     Breakout with no room: long OKTA @ 211.31 (limit full)
+2026-11-19 09:35:50 ET  INFO     Breakout with no room: long APA @ 46.29 (limit full)
+2026-11-19 09:36:52 ET  INFO     Breakeven: long P reached 109.00 (+1R); stop moved to 107.99
+2026-11-19 09:41:12 ET  INFO     Breakout: buy D x2.9873 at market (level 66.85, last 66.85, rank 14, rvol 3.0)
+2026-11-19 09:41:15 ET  INFO     Entry filled: long D x2.9873 @ 66.88 -> stop 66.74
+2026-11-19 09:49:28 ET  INFO     Breakout: buy WMT x1.593 at market (level 125.30, last 125.30, rank 10, rvol 3.6)
+2026-11-19 09:49:31 ET  INFO     Entry filled: long WMT x1.593 @ 125.31 -> stop 125.00
+2026-11-19 15:00:30 ET  INFO     ---- Day trader 2026-11-19 phase close (dry_run=False); entries until 15:30, flat at 15:55 ----
+2026-11-19 15:55:19 ET  INFO     Flatten: sell LNT x1.786
+2026-11-19 15:55:34 ET  INFO     End of day: all day-trade positions closed
+2026-11-19 15:55:34 ET  INFO     Account at the close: $997.82 (started the day at $1000.00)
