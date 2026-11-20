@@ -1,262 +1,286 @@
 {
- "date": "2026-11-19",
+ "date": "2026-11-20",
  "picks": [
   {
-   "symbol": "WSM",
-   "rvol": 8.89,
+   "symbol": "ROST",
+   "rvol": 20.99,
    "side": "long",
-   "level": 246.35,
-   "atr": 10.4964,
-   "stop_dist": 1.0496,
-   "first_open": 243.44,
-   "first_close": 245.09,
+   "level": 215.49,
+   "atr": 8.705,
+   "stop_dist": 0.8705,
+   "first_open": 211.07,
+   "first_close": 215.36,
+   "rank": 1,
+   "state": "missed: no room"
+  },
+  {
+   "symbol": "CVNA",
+   "rvol": 11.38,
+   "side": "long",
+   "level": 69.01,
+   "atr": 4.0589,
+   "stop_dist": 0.4059,
+   "first_open": 67.95,
+   "first_close": 68.94,
+   "rank": 2,
+   "state": "entered",
+   "detect_price": 69.13,
+   "notional": 199.44696299999998,
+   "detect_time": "09:36"
+  },
+  {
+   "symbol": "INTU",
+   "rvol": 6.86,
+   "side": "long",
+   "level": 296.55,
+   "atr": 13.7921,
+   "stop_dist": 1.3792,
+   "first_open": 285.115,
+   "first_close": 292.455,
    "rank": 3,
-   "state": "missed: no room"
-  },
-  {
-   "symbol": "LNT",
-   "rvol": 4.11,
-   "side": "long",
-   "level": 71.78,
-   "atr": 1.5811,
-   "stop_dist": 0.1581,
-   "first_open": 71.78,
-   "first_close": 71.785,
-   "rank": 4,
    "state": "entered",
-   "detect_price": 71.785,
-   "notional": 199.99301,
-   "detect_time": "09:35"
-  },
-  {
-   "symbol": "OKTA",
-   "rvol": 4.04,
-   "side": "long",
-   "level": 211.26,
-   "atr": 14.9063,
-   "stop_dist": 1.4906,
-   "first_open": 203.32,
-   "first_close": 211.26,
-   "rank": 5,
-   "state": "missed: no room"
-  },
-  {
-   "symbol": "TTWO",
-   "rvol": 4.0,
-   "side": "long",
-   "level": 225.69,
-   "atr": 13.0171,
-   "stop_dist": 1.3017,
-   "first_open": 214.72,
-   "first_close": 218.28,
-   "rank": 7,
-   "state": "no breakout"
-  },
-  {
-   "symbol": "P",
-   "rvol": 3.83,
-   "side": "long",
-   "level": 108.07,
-   "atr": 10.0551,
-   "stop_dist": 1.0055,
-   "first_open": 104.95,
-   "first_close": 107.76,
-   "rank": 8,
-   "state": "entered",
-   "detect_price": 108.09,
-   "notional": 199.998927,
-   "detect_time": "09:35"
-  },
-  {
-   "symbol": "WMT",
-   "rvol": 3.56,
-   "side": "long",
-   "level": 125.3,
-   "atr": 3.0843,
-   "stop_dist": 0.3084,
-   "first_open": 123.765,
-   "first_close": 124.46,
-   "rank": 10,
-   "state": "entered",
-   "detect_price": 125.3,
-   "notional": 199.6029,
-   "detect_time": "09:49"
-  },
-  {
-   "symbol": "WDAY",
-   "rvol": 3.48,
-   "side": "long",
-   "level": 178.72,
-   "atr": 7.4714,
-   "stop_dist": 0.7471,
-   "first_open": 175.03,
-   "first_close": 178.72,
-   "rank": 11,
-   "state": "missed: no room"
-  },
-  {
-   "symbol": "PANW",
-   "rvol": 3.14,
-   "side": "long",
-   "level": 370.0,
-   "atr": 20.1986,
-   "stop_dist": 2.0199,
-   "first_open": 355.655,
-   "first_close": 368.3,
-   "rank": 13,
-   "state": "no breakout"
-  },
-  {
-   "symbol": "D",
-   "rvol": 3.04,
-   "side": "long",
-   "level": 66.85,
-   "atr": 1.37,
-   "stop_dist": 0.137,
-   "first_open": 66.81,
-   "first_close": 66.84,
-   "rank": 14,
-   "state": "entered",
-   "detect_price": 66.85,
-   "notional": 199.70100499999998,
+   "detect_price": 296.79,
+   "notional": 198.90865800000003,
    "detect_time": "09:41"
   },
   {
-   "symbol": "WMB",
-   "rvol": 2.55,
+   "symbol": "USB",
+   "rvol": 6.53,
    "side": "long",
-   "level": 68.01,
-   "atr": 2.755,
-   "stop_dist": 0.2755,
-   "first_open": 67.37,
-   "first_close": 67.79,
-   "rank": 18,
-   "state": "no breakout"
+   "level": 57.75,
+   "atr": 1.4364,
+   "stop_dist": 0.1436,
+   "first_open": 57.5,
+   "first_close": 57.64,
+   "rank": 5,
+   "state": "entered",
+   "detect_price": 57.78,
+   "notional": 199.03476600000002,
+   "detect_time": "09:38"
   },
   {
-   "symbol": "APA",
-   "rvol": 2.48,
+   "symbol": "TSCO",
+   "rvol": 4.99,
    "side": "long",
-   "level": 46.22,
-   "atr": 2.1543,
-   "stop_dist": 0.2154,
-   "first_open": 45.85,
-   "first_close": 46.165,
-   "rank": 19,
+   "level": 39.03,
+   "atr": 1.4907,
+   "stop_dist": 0.1491,
+   "first_open": 38.83,
+   "first_close": 39.03,
+   "rank": 7,
+   "state": "entered",
+   "detect_price": 39.1,
+   "notional": 199.55467000000002,
+   "detect_time": "09:35"
+  },
+  {
+   "symbol": "COP",
+   "rvol": 4.16,
+   "side": "long",
+   "level": 135.78,
+   "atr": 4.4309,
+   "stop_dist": 0.4431,
+   "first_open": 134.78,
+   "first_close": 135.78,
+   "rank": 10,
+   "state": "entered",
+   "detect_price": 135.9,
+   "notional": 198.59067000000002,
+   "detect_time": "09:50"
+  },
+  {
+   "symbol": "AMCR",
+   "rvol": 3.64,
+   "side": "long",
+   "level": 43.25,
+   "atr": 1.5343,
+   "stop_dist": 0.1534,
+   "first_open": 42.93,
+   "first_close": 43.245,
+   "rank": 12,
    "state": "missed: no room"
+  },
+  {
+   "symbol": "DIS",
+   "rvol": 3.5,
+   "side": "long",
+   "level": 121.94,
+   "atr": 3.3414,
+   "stop_dist": 0.3341,
+   "first_open": 120.885,
+   "first_close": 121.75,
+   "rank": 14,
+   "state": "missed: no room"
+  },
+  {
+   "symbol": "COR",
+   "rvol": 3.32,
+   "side": "long",
+   "level": 346.89,
+   "atr": 10.384,
+   "stop_dist": 1.0384,
+   "first_open": 344.31,
+   "first_close": 345.47,
+   "rank": 17
+  },
+  {
+   "symbol": "COO",
+   "rvol": 3.3,
+   "side": "long",
+   "level": 60.48,
+   "atr": 1.7557,
+   "stop_dist": 0.1756,
+   "first_open": 60.175,
+   "first_close": 60.485,
+   "rank": 18,
+   "state": "entered",
+   "detect_price": 60.485,
+   "notional": 199.552112,
+   "detect_time": "09:35"
   }
  ],
  "events": [
   {
    "time": "09:35",
-   "symbol": "LNT",
+   "symbol": "TSCO",
    "event": "entry order buy market",
-   "price": 71.785,
-   "aimed": 71.78,
-   "qty": 2.786
+   "price": 39.1,
+   "aimed": 39.03,
+   "qty": 5.1037
   },
   {
    "time": "09:35",
-   "symbol": "P",
+   "symbol": "COO",
    "event": "entry order buy market",
-   "price": 108.09,
-   "aimed": 108.07,
-   "qty": 1.8503
+   "price": 60.485,
+   "aimed": 60.48,
+   "qty": 3.2992
   },
   {
    "time": "09:35",
-   "symbol": "WDAY",
+   "symbol": "AMCR",
    "event": "skipped: broke out while the 50% limit was full",
-   "price": 178.72
+   "price": 43.37
   },
   {
    "time": "09:35",
-   "symbol": "LNT",
+   "symbol": "ROST",
+   "event": "skipped: broke out while the 50% limit was full",
+   "price": 215.9
+  },
+  {
+   "time": "09:35",
+   "symbol": "TSCO",
    "event": "entry filled",
-   "price": 71.73,
-   "qty": 1.0,
-   "stop": 71.57,
-   "aimed": 71.78,
-   "slippage_pct": -0.0697
+   "price": 39.04,
+   "qty": 5.1037,
+   "stop": 38.89,
+   "aimed": 39.03,
+   "slippage_pct": 0.0256
   },
   {
    "time": "09:35",
-   "symbol": "P",
+   "symbol": "COO",
    "event": "entry filled",
-   "price": 107.99,
-   "qty": 1.8503,
-   "stop": 106.98,
-   "aimed": 108.07,
-   "slippage_pct": -0.074
-  },
-  {
-   "time": "09:35",
-   "symbol": "WSM",
-   "event": "skipped: broke out while the 50% limit was full",
-   "price": 246.51
-  },
-  {
-   "time": "09:35",
-   "symbol": "OKTA",
-   "event": "skipped: broke out while the 50% limit was full",
-   "price": 211.315
-  },
-  {
-   "time": "09:35",
-   "symbol": "APA",
-   "event": "skipped: broke out while the 50% limit was full",
-   "price": 46.29
+   "price": 60.79,
+   "qty": 3.2992,
+   "stop": 60.61,
+   "aimed": 60.48,
+   "slippage_pct": 0.5126
   },
   {
    "time": "09:36",
-   "symbol": "P",
+   "symbol": "CVNA",
+   "event": "entry order buy market",
+   "price": 69.13,
+   "aimed": 69.01,
+   "qty": 2.8851
+  },
+  {
+   "time": "09:36",
+   "symbol": "CVNA",
+   "event": "entry filled",
+   "price": 69.2,
+   "qty": 2.8851,
+   "stop": 68.79,
+   "aimed": 69.01,
+   "slippage_pct": 0.2753
+  },
+  {
+   "time": "09:38",
+   "symbol": "USB",
+   "event": "entry order buy market",
+   "price": 57.78,
+   "aimed": 57.75,
+   "qty": 3.4447
+  },
+  {
+   "time": "09:38",
+   "symbol": "USB",
+   "event": "entry filled",
+   "price": 57.808388,
+   "qty": 3.4447,
+   "stop": 57.66,
+   "aimed": 57.75,
+   "slippage_pct": 0.1011
+  },
+  {
+   "time": "09:39",
+   "symbol": "DIS",
+   "event": "skipped: broke out while the 50% limit was full",
+   "price": 121.95
+  },
+  {
+   "time": "09:40",
+   "symbol": "USB",
    "event": "stop moved to breakeven",
-   "price": 109.0,
-   "stop": 107.99
+   "price": 57.96,
+   "stop": 57.81
   },
   {
    "time": "09:41",
-   "symbol": "D",
+   "symbol": "INTU",
    "event": "entry order buy market",
-   "price": 66.85,
-   "aimed": 66.85,
-   "qty": 2.9873
+   "price": 296.79,
+   "aimed": 296.55,
+   "qty": 0.6702
   },
   {
    "time": "09:41",
-   "symbol": "D",
+   "symbol": "INTU",
    "event": "entry filled",
-   "price": 66.88,
-   "qty": 2.9873,
-   "stop": 66.74,
-   "aimed": 66.85,
-   "slippage_pct": 0.0449
+   "price": 296.942,
+   "qty": 0.6702,
+   "stop": 295.56,
+   "aimed": 296.55,
+   "slippage_pct": 0.1322
   },
   {
-   "time": "09:49",
-   "symbol": "WMT",
+   "time": "09:50",
+   "symbol": "COP",
    "event": "entry order buy market",
-   "price": 125.3,
-   "aimed": 125.3,
-   "qty": 1.593
+   "price": 135.9,
+   "aimed": 135.78,
+   "qty": 1.4613
   },
   {
-   "time": "09:49",
-   "symbol": "WMT",
+   "time": "09:50",
+   "symbol": "COP",
    "event": "entry filled",
-   "price": 125.31,
-   "qty": 1.593,
-   "stop": 125.0,
-   "aimed": 125.3,
-   "slippage_pct": 0.008
+   "price": 135.95,
+   "qty": 1.4613,
+   "stop": 135.51,
+   "aimed": 135.78,
+   "slippage_pct": 0.1252
   },
   {
-   "time": "15:55",
-   "symbol": "LNT",
-   "event": "closed at end of day",
-   "qty": 1.786
+   "time": "09:56",
+   "symbol": "COP",
+   "event": "stop moved to breakeven",
+   "price": 136.445,
+   "stop": 135.95
   }
  ],
  "dry_run": false,
- "equity_at_start": 1000.0
+ "equity_at_start": 997.79
 }

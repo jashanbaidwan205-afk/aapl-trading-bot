@@ -18,3 +18,70 @@
 2026-11-19 15:55:19 ET  INFO     Flatten: sell LNT x1.786
 2026-11-19 15:55:34 ET  INFO     End of day: all day-trade positions closed
 2026-11-19 15:55:34 ET  INFO     Account at the close: $997.82 (started the day at $1000.00)
+2026-11-20 09:12:24 ET  INFO     ---- Day trader 2026-11-20 phase day (dry_run=False); entries until 15:30, flat at 15:55 ----
+2026-11-20 09:14:39 ET  INFO     Prepared 502 stocks before the open
+2026-11-20 09:35:05 ET  INFO     Stocks in play for 2026-11-20: ROST(l,20.99x), CVNA(l,11.38x), INTU(l,6.86x), MS(s,6.57x), USB(l,6.53x), SNPS(s,6.22x), TSCO(l,4.99x), EMR(s,4.36x), FAST(s,4.22x), COP(l,4.16x), SNDK(s,4.06x), AMCR(l,3.64x), GEV(s,3.63x), DIS(l,3.5x), C(s,3.48x), HOOD(s,3.39x), COR(l,3.32x), COO(l,3.3x), JBL(s,3.21x), GS(s,3.2x)
+2026-11-20 09:35:05 ET  INFO     Breakout: buy TSCO x5.1037 at market (level 39.03, last 39.10, rank 7, rvol 5.0)
+2026-11-20 09:35:06 ET  INFO     Breakout: buy COO x3.2992 at market (level 60.48, last 60.48, rank 18, rvol 3.3)
+2026-11-20 09:35:09 ET  INFO     Breakout with no room: long AMCR @ 43.37 (limit full)
+2026-11-20 09:35:12 ET  INFO     Breakout with no room: long ROST @ 215.90 (limit full)
+2026-11-20 09:35:15 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"3772d032-3dfa-4170-afc1-4ea2b505326d","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-20 09:35:18 ET  INFO     Entry filled: long TSCO x5.1037 @ 39.04 -> stop 38.89
+2026-11-20 09:35:18 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"3772d032-3dfa-4170-afc1-4ea2b505326d","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-20 09:35:21 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"60.58","message":"stop price must be less than current price","stop_price":"60.61"}
+2026-11-20 09:35:24 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"60.59","message":"stop price must be less than current price","stop_price":"60.61"}
+2026-11-20 09:35:27 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"60.59","message":"stop price must be less than current price","stop_price":"60.61"}
+2026-11-20 09:35:30 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"60.6","message":"stop price must be less than current price","stop_price":"60.61"}
+2026-11-20 09:35:33 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"60.6","message":"stop price must be less than current price","stop_price":"60.61"}
+2026-11-20 09:35:36 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"60.6","message":"stop price must be less than current price","stop_price":"60.61"}
+2026-11-20 09:35:39 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"60.6","message":"stop price must be less than current price","stop_price":"60.61"}
+2026-11-20 09:35:42 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"60.6","message":"stop price must be less than current price","stop_price":"60.61"}
+2026-11-20 09:35:45 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"60.6","message":"stop price must be less than current price","stop_price":"60.61"}
+2026-11-20 09:35:48 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"60.6","message":"stop price must be less than current price","stop_price":"60.61"}
+2026-11-20 09:35:51 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"60.61","message":"stop price must be less than current price","stop_price":"60.61"}
+2026-11-20 09:35:54 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"60.61","message":"stop price must be less than current price","stop_price":"60.61"}
+2026-11-20 09:35:58 ET  INFO     Entry filled: long COO x3.2992 @ 60.79 -> stop 60.61
+2026-11-20 09:36:07 ET  INFO     Breakout: buy CVNA x2.8851 at market (level 69.01, last 69.13, rank 2, rvol 11.4)
+2026-11-20 09:36:13 ET  INFO     Entry filled: long CVNA x2.8851 @ 69.20 -> stop 68.79
+2026-11-20 09:38:20 ET  INFO     Breakout: buy USB x3.4447 at market (level 57.75, last 57.78, rank 5, rvol 6.5)
+2026-11-20 09:38:23 ET  INFO     Entry filled: long USB x3.4447 @ 57.81 -> stop 57.66
+2026-11-20 09:39:42 ET  INFO     Breakout with no room: long DIS @ 121.95 (limit full)
+2026-11-20 09:40:40 ET  INFO     Breakeven: long USB reached 57.95 (+1R); stop moved to 57.81
+2026-11-20 09:41:08 ET  INFO     Breakout: buy INTU x0.6702 at market (level 296.55, last 296.79, rank 3, rvol 6.9)
+2026-11-20 09:41:11 ET  INFO     Entry filled: long INTU x0.6702 @ 296.94 -> stop 295.56
+2026-11-20 09:50:46 ET  INFO     Breakout: buy COP x1.4613 at market (level 135.78, last 135.90, rank 10, rvol 4.2)
+2026-11-20 09:50:49 ET  INFO     Entry filled: long COP x1.4613 @ 135.95 -> stop 135.51
+2026-11-20 09:56:06 ET  INFO     Breakeven: long COP reached 136.39 (+1R); stop moved to 135.95
+2026-11-20 15:00:24 ET  INFO     ---- Day trader 2026-11-20 phase close (dry_run=False); entries until 15:30, flat at 15:55 ----
+2026-11-20 15:55:09 ET  ERROR    Day trader failed: {"available":"0","code":40310000,"existing_qty":"1.4613","held_for_orders":"1.4613","message":"insufficient qty available for order (requested: 1.4613, available: 0)","related_orders":["e31a0936-69b0-40bd-850e-d5962c33ff18"],"symbol":"COP"}
+Traceback (most recent call last):
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 201, in _one_request
+    response.raise_for_status()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/requests/models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/small_bot.py", line 705, in main
+    run(a.phase, a.dry_run or C.DRY_RUN, a.day, a.minutes)
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/small_bot.py", line 679, in run
+    flatten(broker, day, since, plan, t)
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/small_bot.py", line 535, in flatten
+    broker.market_order(sym, qty, side, pre + "x-" + sym)
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/small_bot.py", line 185, in market_order
+    return self.c.submit_order(MarketOrderRequest(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 243, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 210, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"available":"0","code":40310000,"existing_qty":"1.4613","held_for_orders":"1.4613","message":"insufficient qty available for order (requested: 1.4613, available: 0)","related_orders":["e31a0936-69b0-40bd-850e-d5962c33ff18"],"symbol":"COP"}
