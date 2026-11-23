@@ -7,5 +7,14 @@
   "stops_moved": 1,
   "dry_run": false,
   "pnl": -2.18
+ },
+ {
+  "date": "2026-11-23",
+  "equity_start": 992.92,
+  "equity_end": 992.99,
+  "entries": 4,
+  "stops_moved": 3,
+  "dry_run": false,
+  "pnl": 0.07
  }
 ]

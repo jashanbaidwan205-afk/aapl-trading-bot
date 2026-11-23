@@ -85,3 +85,94 @@ Traceback (most recent call last):
   File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 210, in _one_request
     raise APIError(error, http_error)
 alpaca.common.exceptions.APIError: {"available":"0","code":40310000,"existing_qty":"1.4613","held_for_orders":"1.4613","message":"insufficient qty available for order (requested: 1.4613, available: 0)","related_orders":["e31a0936-69b0-40bd-850e-d5962c33ff18"],"symbol":"COP"}
+2026-11-23 09:12:27 ET  INFO     ---- Day trader 2026-11-23 phase day (dry_run=False); entries until 15:30, flat at 15:55 ----
+2026-11-23 09:14:35 ET  INFO     Prepared 501 stocks before the open
+2026-11-23 09:35:06 ET  INFO     Stocks in play for 2026-11-23: HPE(s,11.4x), ACGL(l,9.78x), VLTO(s,8.99x), IFF(s,6.46x), DLR(s,6.41x), FAST(s,6.27x), CTAS(l,5.36x), WM(l,5.17x), UNH(l,5.07x), CRWD(s,4.94x), ITW(s,4.85x), EXE(l,4.79x), SHW(s,4.75x), JCI(s,4.44x), CMG(s,4.4x), RJF(l,4.32x), CL(s,4.31x), EMR(l,4.25x), GE(s,3.95x), EQT(l,3.91x)
+2026-11-23 09:35:26 ET  INFO     Breakout: buy EXE x2.4264 at market (level 81.83, last 81.84, rank 12, rvol 4.8)
+2026-11-23 09:35:33 ET  INFO     Breakout: buy WM x0.8353 at market (level 237.53, last 237.72, rank 8, rvol 5.2)
+2026-11-23 09:35:36 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.92","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:35:40 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.92","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:35:43 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.1","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:35:46 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.1","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:35:50 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.1","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:35:53 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.11","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:35:56 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.11","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:35:59 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.11","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:03 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.11","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:06 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.11","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:09 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.11","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:13 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.11","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:16 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.11","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:19 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.11","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:23 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.11","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:26 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.11","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:29 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.12","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:32 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.12","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:36 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.52","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:39 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.74","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:42 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.74","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:46 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.74","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:49 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.98","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:52 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.98","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:55 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.98","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:36:59 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.98","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:02 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.98","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:05 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.98","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:09 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.98","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:12 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.98","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:15 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.98","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:19 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.52","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:22 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.52","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:25 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.74","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:28 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.74","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:32 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.74","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:35 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.74","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:38 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.74","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:42 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.75","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:45 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.75","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:48 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.75","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:51 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.78","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:55 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.78","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:37:58 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.82","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:01 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.82","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:05 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.83","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:08 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.83","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:11 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.84","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:14 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.84","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:18 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"236.84","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:21 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.02","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:24 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.03","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:28 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.03","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:31 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.03","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:34 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.05","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:37 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.05","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:41 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.05","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:44 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.08","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:47 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.08","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:50 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.08","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:54 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.08","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:38:57 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.08","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:39:00 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.08","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:39:04 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.08","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:39:07 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.38","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:39:10 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.38","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:39:14 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.39","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:39:17 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.39","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:39:20 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"237.39","message":"stop price must be less than current price","stop_price":"237.4"}
+2026-11-23 09:39:23 ET  INFO     Entry filled: long WM x0.8353 @ 237.88 -> stop 237.40
+2026-11-23 09:39:23 ET  INFO     Entry filled: long EXE x2.4264 @ 81.80 -> stop 81.55
+2026-11-23 09:40:10 ET  INFO     Breakout with no room: long CTAS @ 222.16 (limit full)
+2026-11-23 09:40:30 ET  INFO     Breakout: buy ACGL x1.8366 at market (level 107.86, last 108.02, rank 2, rvol 9.8)
+2026-11-23 09:40:43 ET  INFO     Entry filled: long ACGL x1.8366 @ 108.10 -> stop 107.86
+2026-11-23 09:45:29 ET  INFO     Breakeven: long WM reached 238.37 (+1R); stop moved to 237.88
+2026-11-23 09:47:21 ET  INFO     Breakout with no room: long RJF @ 160.31 (limit full)
+2026-11-23 09:48:40 ET  INFO     Breakeven: long ACGL reached 108.34 (+1R); stop moved to 108.10
+2026-11-23 09:56:02 ET  INFO     Breakout with no room: long EQT @ 49.52 (limit full)
+2026-11-23 09:59:49 ET  INFO     Breakout: buy UNH x0.6009 at market (level 330.21, last 330.40, rank 9, rvol 5.1)
+2026-11-23 09:59:52 ET  INFO     Entry filled: long UNH x0.6009 @ 330.44 -> stop 328.83
+2026-11-23 10:01:11 ET  INFO     Breakeven: long UNH reached 332.05 (+1R); stop moved to 330.44
+2026-11-23 10:06:46 ET  INFO     Breakout with no room: long EMR @ 159.36 (limit full)
+2026-11-23 15:00:32 ET  INFO     ---- Day trader 2026-11-23 phase close (dry_run=False); entries until 15:30, flat at 15:55 ----
+2026-11-23 15:55:03 ET  INFO     Flatten: sell ACGL x1.8366
+2026-11-23 15:55:19 ET  INFO     End of day: all day-trade positions closed
+2026-11-23 15:55:19 ET  INFO     Account at the close: $992.99 (started the day at $992.92)
