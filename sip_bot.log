@@ -3712,3 +3712,102 @@ Traceback (most recent call last):
   File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 210, in _one_request
     raise APIError(error, http_error)
 alpaca.common.exceptions.APIError: {"available":"0","code":40310000,"existing_qty":"143","held_for_orders":"143","message":"insufficient qty available for order (requested: 143, available: 0)","related_orders":["cfa7ae0a-f11e-43c2-9e4f-a6d62e9329a9"],"symbol":"COP"}
+2026-11-23 09:12:22 ET  INFO     ---- Day trader 2026-11-23 phase day (dry_run=False); entries until 15:30, flat at 15:55 ----
+2026-11-23 09:14:33 ET  INFO     Prepared 502 stocks before the open
+2026-11-23 09:35:06 ET  INFO     Stocks in play for 2026-11-23: HPE(s,11.4x), ACGL(l,9.78x), VLTO(s,8.99x), IFF(s,6.46x), DLR(s,6.41x), FAST(s,6.27x), CTAS(l,5.36x), WM(l,5.17x), UNH(l,5.07x), CRWD(s,4.94x), ITW(s,4.85x), EXE(l,4.79x), SHW(s,4.75x), JCI(s,4.44x), CMG(s,4.4x), RJF(l,4.32x), CL(s,4.31x), EMR(l,4.25x), GE(s,3.95x), EQT(l,3.91x)
+2026-11-23 09:35:06 ET  INFO     Breakout: sell IFF x244 at market (level 80.17, last 80.07, rank 4, rvol 6.5)
+2026-11-23 09:35:07 ET  INFO     Breakout: sell FAST x380 at market (level 51.55, last 51.54, rank 6, rvol 6.3)
+2026-11-23 09:35:07 ET  INFO     Breakout with no room: short CRWD @ 215.02 (limit full)
+2026-11-23 09:35:07 ET  INFO     Breakout with no room: short ITW @ 276.63 (limit full)
+2026-11-23 09:35:07 ET  INFO     Breakout with no room: short JCI @ 136.20 (limit full)
+2026-11-23 09:35:07 ET  INFO     Breakout with no room: short GE @ 316.63 (limit full)
+2026-11-23 09:35:10 ET  INFO     Breakout with no room: short DLR @ 170.44 (limit full)
+2026-11-23 09:35:26 ET  INFO     Breakout with no room: long EXE @ 81.84 (limit full)
+2026-11-23 09:35:33 ET  INFO     Breakout with no room: long WM @ 237.72 (limit full)
+2026-11-23 09:35:36 ET  INFO     Breakout with no room: short HPE @ 46.13 (limit full)
+2026-11-23 09:35:42 ET  INFO     Entry filled: short IFF x244 @ 79.86 -> stop 80.13
+2026-11-23 09:35:42 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:35:46 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:35:49 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:35:52 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:35:55 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:35:59 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:02 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:05 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:09 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:12 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:15 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:18 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:22 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:25 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:28 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:31 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:35 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:38 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:41 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:44 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:48 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:51 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:54 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:36:57 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:00 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:04 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:07 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:10 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:13 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:17 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:20 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:23 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:26 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:30 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:33 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:36 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:39 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:43 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:46 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:49 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:52 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:56 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:37:59 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"f060be9e-a575-411c-b9ac-34f41b7c4680","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:38:02 ET  INFO     Entry filled: short FAST x380 @ 51.43 -> stop 51.56
+2026-11-23 09:38:02 ET  INFO     Breakout: sell SHW x57 at market (level 340.20, last 340.39, rank 13, rvol 4.8)
+2026-11-23 09:38:38 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"341.09","message":"stop price must be greater than current price","stop_price":"340.9"}
+2026-11-23 09:38:41 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"340.91","message":"stop price must be greater than current price","stop_price":"340.9"}
+2026-11-23 09:38:45 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"341.08","message":"stop price must be greater than current price","stop_price":"340.9"}
+2026-11-23 09:38:48 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"341.09","message":"stop price must be greater than current price","stop_price":"340.9"}
+2026-11-23 09:38:51 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"341.08","message":"stop price must be greater than current price","stop_price":"340.9"}
+2026-11-23 09:38:54 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"340.92","message":"stop price must be greater than current price","stop_price":"340.9"}
+2026-11-23 09:38:58 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"340.91","message":"stop price must be greater than current price","stop_price":"340.9"}
+2026-11-23 09:39:01 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"340.91","message":"stop price must be greater than current price","stop_price":"340.9"}
+2026-11-23 09:39:04 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"340.91","message":"stop price must be greater than current price","stop_price":"340.9"}
+2026-11-23 09:39:07 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"340.91","message":"stop price must be greater than current price","stop_price":"340.9"}
+2026-11-23 09:39:11 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"340.91","message":"stop price must be greater than current price","stop_price":"340.9"}
+2026-11-23 09:39:14 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"340.91","message":"stop price must be greater than current price","stop_price":"340.9"}
+2026-11-23 09:39:17 ET  INFO     Entry filled: short SHW x57 @ 339.76 -> stop 340.90
+2026-11-23 09:39:30 ET  INFO     Breakeven: short FAST reached 51.29 (+1R); stop moved to 51.43
+2026-11-23 09:40:12 ET  INFO     Breakout: buy CTAS x88 at market (level 222.16, last 222.16, rank 7, rvol 5.4)
+2026-11-23 09:40:29 ET  INFO     Entry filled: long CTAS x88 @ 221.90 -> stop 221.38
+2026-11-23 09:40:29 ET  INFO     Breakout with no room: long ACGL @ 108.02 (limit full)
+2026-11-23 09:47:22 ET  INFO     Breakout: buy RJF x122 at market (level 159.75, last 160.31, rank 16, rvol 4.3)
+2026-11-23 09:47:25 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"160.1","message":"stop price must be less than current price","stop_price":"160.1"}
+2026-11-23 09:47:28 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"160.1","message":"stop price must be less than current price","stop_price":"160.1"}
+2026-11-23 09:47:31 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"160.1","message":"stop price must be less than current price","stop_price":"160.1"}
+2026-11-23 09:47:34 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"160.1","message":"stop price must be less than current price","stop_price":"160.1"}
+2026-11-23 09:47:38 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"160.1","message":"stop price must be less than current price","stop_price":"160.1"}
+2026-11-23 09:47:41 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"160.1","message":"stop price must be less than current price","stop_price":"160.1"}
+2026-11-23 09:47:44 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"160.1","message":"stop price must be less than current price","stop_price":"160.1"}
+2026-11-23 09:47:47 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"160.1","message":"stop price must be less than current price","stop_price":"160.1"}
+2026-11-23 09:47:51 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"160.1","message":"stop price must be less than current price","stop_price":"160.1"}
+2026-11-23 09:47:54 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"160.1","message":"stop price must be less than current price","stop_price":"160.1"}
+2026-11-23 09:47:57 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"160.1","message":"stop price must be less than current price","stop_price":"160.1"}
+2026-11-23 09:48:00 ET  INFO     Entry filled: long RJF x122 @ 160.53 -> stop 160.10
+2026-11-23 09:56:01 ET  INFO     Breakout: buy EQT x395 at market (level 49.45, last 49.52, rank 20, rvol 3.9)
+2026-11-23 09:56:04 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"8e588b46-0b68-4b60-9c4c-a52bd3e6761b","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-23 09:56:07 ET  INFO     Entry filled: long EQT x395 @ 49.55 -> stop 49.37
+2026-11-23 09:57:16 ET  INFO     Breakout: sell CMG x551 at market (level 35.52, last 35.47, rank 15, rvol 4.4)
+2026-11-23 09:57:19 ET  INFO     Entry filled: short CMG x551 @ 35.45 -> stop 35.57
+2026-11-23 09:59:51 ET  INFO     Breakout: buy UNH x59 at market (level 330.21, last 330.40, rank 9, rvol 5.1)
+2026-11-23 09:59:55 ET  INFO     Entry filled: long UNH x59 @ 330.47 -> stop 328.86
+2026-11-23 10:01:12 ET  INFO     Breakeven: long UNH reached 332.08 (+1R); stop moved to 330.47
+2026-11-23 10:06:46 ET  INFO     Breakout with no room: long EMR @ 159.36 (limit full)
+2026-11-23 10:10:32 ET  INFO     ---- Day trader 2026-11-23 phase close (dry_run=False); entries until 15:30, flat at 15:55 ----
