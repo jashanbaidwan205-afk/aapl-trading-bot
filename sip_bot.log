@@ -3811,3 +3811,91 @@ alpaca.common.exceptions.APIError: {"available":"0","code":40310000,"existing_qt
 2026-11-23 10:01:12 ET  INFO     Breakeven: long UNH reached 332.08 (+1R); stop moved to 330.47
 2026-11-23 10:06:46 ET  INFO     Breakout with no room: long EMR @ 159.36 (limit full)
 2026-11-23 10:10:32 ET  INFO     ---- Day trader 2026-11-23 phase close (dry_run=False); entries until 15:30, flat at 15:55 ----
+2026-11-24 09:12:27 ET  INFO     ---- Day trader 2026-11-24 phase day (dry_run=False); entries until 15:30, flat at 15:55 ----
+2026-11-24 09:14:39 ET  INFO     Prepared 502 stocks before the open
+2026-11-24 09:35:06 ET  INFO     Stocks in play for 2026-11-24: DLTR(l,11.97x), MDT(s,11.79x), VTR(s,9.23x), BBY(s,7.91x), SJM(l,7.56x), DG(l,6.46x), INVH(l,6.33x), GD(l,5.4x), ADI(s,5.0x), MPWR(l,4.76x), GILD(l,4.75x), TMO(l,4.3x), A(s,4.17x), RVTY(l,4.07x), OKTA(s,3.88x), APD(l,3.44x), ADP(l,3.4x), HONA(l,3.28x), NTAP(s,3.24x), SWK(s,3.13x)
+2026-11-24 09:35:07 ET  INFO     Breakout: buy GD x55 at market (level 350.22, last 350.22, rank 8, rvol 5.4)
+2026-11-24 09:35:07 ET  INFO     Breakout: buy GILD x112 at market (level 173.20, last 173.20, rank 11, rvol 4.8)
+2026-11-24 09:35:07 ET  INFO     Breakout with no room: long TMO @ 696.87 (limit full)
+2026-11-24 09:35:07 ET  INFO     Breakout with no room: short NTAP @ 163.69 (limit full)
+2026-11-24 09:35:10 ET  INFO     Breakout with no room: short ADI @ 320.98 (limit full)
+2026-11-24 09:35:20 ET  INFO     Breakout with no room: long INVH @ 26.60 (limit full)
+2026-11-24 09:35:30 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"b5ea5336-0a5f-407c-993a-00ccb5fa7a33","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-24 09:35:33 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"b5ea5336-0a5f-407c-993a-00ccb5fa7a33","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-24 09:35:37 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"b5ea5336-0a5f-407c-993a-00ccb5fa7a33","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-24 09:35:40 ET  INFO     Entry filled: long GD x55 @ 349.74 -> stop 348.87
+2026-11-24 09:35:40 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"b5ea5336-0a5f-407c-993a-00ccb5fa7a33","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-24 09:35:43 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"b5ea5336-0a5f-407c-993a-00ccb5fa7a33","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-24 09:35:47 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"b5ea5336-0a5f-407c-993a-00ccb5fa7a33","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-24 09:35:50 ET  INFO     Entry filled: long GILD x112 @ 173.83 -> stop 173.35
+2026-11-24 09:36:26 ET  INFO     Breakout with no room: short VTR @ 86.16 (limit full)
+2026-11-24 09:37:28 ET  INFO     Breakout with no room: long RVTY @ 156.91 (limit full)
+2026-11-24 09:37:32 ET  INFO     Breakout with no room: long ADP @ 305.03 (limit full)
+2026-11-24 09:37:45 ET  INFO     Breakout with no room: long HONA @ 155.38 (limit full)
+2026-11-24 09:38:18 ET  INFO     Breakeven: long GILD reached 174.30 (+1R); stop moved to 173.83
+2026-11-24 09:38:37 ET  INFO     Breakout with no room: long SJM @ 128.99 (limit full)
+2026-11-24 09:38:47 ET  INFO     Breakout with no room: short OKTA @ 203.02 (limit full)
+2026-11-24 09:39:14 ET  INFO     Breakout with no room: long DG @ 138.56 (limit full)
+2026-11-24 09:39:43 ET  INFO     Breakout with no room: long DLTR @ 154.00 (limit full)
+2026-11-24 09:39:50 ET  INFO     Breakout with no room: long APD @ 304.08 (limit full)
+2026-11-24 09:49:31 ET  INFO     Breakeven: long GD reached 350.61 (+1R); stop moved to 349.74
+2026-11-24 09:50:51 ET  INFO     Breakout with no room: short BBY @ 96.82 (limit full)
+2026-11-24 09:53:25 ET  INFO     Breakout with no room: short SWK @ 108.60 (limit full)
+2026-11-24 10:59:20 ET  INFO     Breakout: sell A x107 at market (level 182.53, last 181.81, rank 13, rvol 4.2)
+2026-11-24 10:59:23 ET  WARNING  Management pass failed: {"code":40310000,"existing_order_id":"607d46e8-33de-4d6e-bd85-adb0c4f9a2b7","message":"potential wash trade detected. use complex orders","reject_reason":"opposite side market/stop order exists"}
+2026-11-24 10:59:26 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 10:59:30 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 10:59:33 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 10:59:36 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 10:59:40 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 10:59:43 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 10:59:46 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 10:59:50 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 10:59:53 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 10:59:56 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 10:59:59 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 11:00:04 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 11:00:08 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 11:00:11 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 11:00:15 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 11:00:18 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 11:00:21 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 11:00:25 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 11:00:28 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 11:00:31 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 11:00:35 ET  WARNING  Management pass failed: {"code":42210000,"market_price":"182.08","message":"stop price must be greater than current price","stop_price":"181.99"}
+2026-11-24 11:00:38 ET  INFO     Entry filled: short A x107 @ 181.47 -> stop 181.99
+2026-11-24 11:01:54 ET  INFO     Breakeven: short A reached 180.95 (+1R); stop moved to 181.47
+2026-11-24 15:00:40 ET  INFO     ---- Day trader 2026-11-24 phase close (dry_run=False); entries until 15:30, flat at 15:55 ----
+2026-11-24 15:55:20 ET  ERROR    Day trader failed: {"available":"0","code":40310000,"existing_qty":"112","held_for_orders":"112","message":"insufficient qty available for order (requested: 112, available: 0)","related_orders":["ca74db64-1d2c-49ff-addc-2532b08f516f"],"symbol":"GILD"}
+Traceback (most recent call last):
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 201, in _one_request
+    response.raise_for_status()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/requests/models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/sip_bot.py", line 650, in main
+    run(a.phase, a.dry_run or config.SIP_DRY_RUN, a.day, a.minutes)
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/sip_bot.py", line 632, in run
+    flatten(broker, day, since, plan, t)
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/sip_bot.py", line 493, in flatten
+    broker.market_order(sym, int(abs(q)), side, pre + "x-" + sym)
+  File "/home/runner/work/aapl-trading-bot/aapl-trading-bot/sip_bot.py", line 173, in market_order
+    return self.c.submit_order(MarketOrderRequest(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/trading/client.py", line 100, in submit_order
+    response = self.post("/orders", data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 243, in post
+    return self._request("POST", path, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/alpaca/common/rest.py", line 210, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"available":"0","code":40310000,"existing_qty":"112","held_for_orders":"112","message":"insufficient qty available for order (requested: 112, available: 0)","related_orders":["ca74db64-1d2c-49ff-addc-2532b08f516f"],"symbol":"GILD"}
