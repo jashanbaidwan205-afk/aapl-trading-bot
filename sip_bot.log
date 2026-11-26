@@ -4059,3 +4059,5 @@ alpaca.common.exceptions.APIError: {"available":"0","code":40310000,"existing_qt
 2026-11-25 15:55:24 ET  INFO     End of day: all day-trade positions closed
 2026-11-26 09:12:17 ET  INFO     Market is closed today. Nothing to do.
 2026-11-26 09:12:51 ET  INFO     Market is closed today. Nothing to do.
+2026-11-26 09:14:06 ET  INFO     Market is closed today. Nothing to do.
+2026-11-26 09:14:36 ET  INFO     Market is closed today. Nothing to do.
