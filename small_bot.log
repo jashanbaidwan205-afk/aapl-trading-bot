@@ -420,3 +420,5 @@ alpaca.common.exceptions.APIError: {"available":"0","code":40310000,"existing_qt
 2026-11-25 15:00:29 ET  INFO     ---- Day trader 2026-11-25 phase close (dry_run=False); entries until 15:30, flat at 15:55 ----
 2026-11-25 15:55:28 ET  INFO     End of day: all day-trade positions closed
 2026-11-25 15:55:28 ET  INFO     Account at the close: $991.63 (started the day at $997.15)
+2026-11-26 09:12:25 ET  INFO     Market is closed today. Nothing to do.
+2026-11-26 09:12:46 ET  INFO     Market is closed today. Nothing to do.
